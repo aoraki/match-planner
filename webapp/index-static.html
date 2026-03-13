@@ -1,0 +1,2504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>⚽ Match Planner</title>
+  <style>
+    :root {
+      --gk:     #f59e0b;
+      --def:    #3b82f6;
+      --mid:    #10b981;
+      --att:    #ef4444;
+      --bg:     #0f172a;
+      --card:   #1e293b;
+      --card2:  #243044;
+      --border: #334155;
+      --text:   #f1f5f9;
+      --muted:  #94a3b8;
+      --accent: #6366f1;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+    /* HEADER */
+    header { background: var(--card); border-bottom: 1px solid var(--border); padding: 1rem 1.5rem; display: flex; align-items: center; gap: 1rem; }
+    header .logo { font-size: 1.8rem; }
+    header h1 { font-size: 1.3rem; font-weight: 700; }
+    header p { color: var(--muted); font-size: 0.85rem; margin-top: 0.1rem; }
+
+    /* TABS */
+    .tabs { display: flex; background: var(--card); border-bottom: 1px solid var(--border); padding: 0 1.5rem; overflow-x: auto; }
+    .tab { padding: 0.75rem 1.25rem; cursor: pointer; color: var(--muted); font-size: 0.9rem; font-weight: 500; border-bottom: 2px solid transparent; transition: all 0.15s; user-select: none; white-space: nowrap; }
+    .tab:hover { color: var(--text); }
+    .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+    /* LAYOUT */
+    .container { max-width: 1100px; margin: 0 auto; padding: 1.5rem; }
+    .panel { display: none; }
+    .panel.active { display: block; }
+
+    /* CARDS */
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 0.75rem; padding: 1.25rem; margin-bottom: 1.25rem; }
+    .card-title { font-size: 1rem; font-weight: 600; margin-bottom: 1rem; }
+
+    /* POSITION BADGES */
+    .badge { display: inline-block; padding: 0.2rem 0.5rem; border-radius: 0.3rem; font-size: 0.75rem; font-weight: 700; }
+    .badge-GK  { background: var(--gk);  color: #000; }
+    .badge-DEF { background: var(--def); color: #fff; }
+    .badge-MID { background: var(--mid); color: #fff; }
+    .badge-ATT { background: var(--att); color: #fff; }
+
+    /* TABLE */
+    .data-table { width: 100%; border-collapse: collapse; }
+    .data-table th { text-align: left; padding: 0.5rem 0.75rem; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); border-bottom: 1px solid var(--border); }
+    .data-table td { padding: 0.6rem 0.75rem; border-bottom: 1px solid var(--border); font-size: 0.875rem; vertical-align: middle; }
+    .data-table tr:last-child td { border-bottom: none; }
+    .data-table tbody tr:hover td { background: var(--card2); }
+
+    /* BUTTONS */
+    .btn { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.45rem 0.9rem; border-radius: 0.5rem; border: none; cursor: pointer; font-size: 0.875rem; font-weight: 500; transition: all 0.15s; text-decoration: none; }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-primary:hover { background: #4f46e5; }
+    .btn-success { background: #10b981; color: #fff; }
+    .btn-success:hover { background: #059669; }
+    .btn-danger  { background: transparent; color: #ef4444; border: 1px solid #ef4444; }
+    .btn-danger:hover  { background: #ef4444; color: #fff; }
+    .btn-ghost   { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+    .btn-ghost:hover   { color: var(--text); border-color: var(--muted); }
+    .btn-sm { padding: 0.25rem 0.55rem; font-size: 0.8rem; }
+    .btn-icon { padding: 0.3rem 0.4rem; }
+
+    /* FORMS */
+    .form-group { display: flex; flex-direction: column; gap: 0.3rem; }
+    .form-group label { font-size: 0.78rem; color: var(--muted); font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; }
+    .form-input { background: var(--bg); border: 1px solid var(--border); border-radius: 0.4rem; color: var(--text); padding: 0.45rem 0.65rem; font-size: 0.9rem; width: 100%; }
+    .form-input:focus { outline: none; border-color: var(--accent); }
+    select.form-input option { background: var(--card); }
+
+    /* POSITION TOGGLE BUTTONS */
+    .pos-toggles { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+    .pos-toggle-cb { display: none; }
+    .pos-toggle-lbl { padding: 0.3rem 0.7rem; border-radius: 0.3rem; border: 1px solid var(--border); cursor: pointer; font-size: 0.75rem; font-weight: 700; color: var(--muted); transition: all 0.15s; user-select: none; }
+    .pos-toggle-cb:checked + .pos-toggle-lbl.lbl-GK  { background: var(--gk);  color: #000; border-color: var(--gk); }
+    .pos-toggle-cb:checked + .pos-toggle-lbl.lbl-DEF { background: var(--def); color: #fff; border-color: var(--def); }
+    .pos-toggle-cb:checked + .pos-toggle-lbl.lbl-MID { background: var(--mid); color: #fff; border-color: var(--mid); }
+    .pos-toggle-cb:checked + .pos-toggle-lbl.lbl-ATT { background: var(--att); color: #fff; border-color: var(--att); }
+
+    /* ABILITY SLIDERS */
+    .ability-grid { display: flex; gap: 0.75rem; flex-wrap: wrap; }
+    .ability-item { display: flex; flex-direction: column; align-items: center; gap: 0.2rem; }
+    .ability-item span.pos-label { font-size: 0.7rem; font-weight: 700; }
+    .ability-item input[type=range] { width: 70px; accent-color: var(--accent); cursor: pointer; }
+    .ability-item .ability-val { font-size: 0.75rem; color: var(--muted); }
+
+    /* SETTINGS GRID */
+    .settings-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 1rem; }
+
+    /* ALERT BOXES */
+    .alert { padding: 0.75rem 1rem; border-radius: 0.5rem; font-size: 0.875rem; margin-bottom: 1rem; line-height: 1.5; }
+    .alert-info    { background: rgba(99,102,241,0.12);  border: 1px solid rgba(99,102,241,0.3);  color: #a5b4fc; }
+    .alert-warning { background: rgba(245,158,11,0.12);  border: 1px solid rgba(245,158,11,0.3);  color: #fcd34d; }
+    .alert-error   { background: rgba(239,68,68,0.12);   border: 1px solid rgba(239,68,68,0.3);   color: #fca5a5; }
+    .alert-success { background: rgba(16,185,129,0.12);  border: 1px solid rgba(16,185,129,0.3);  color: #6ee7b7; }
+
+    /* PLAYING TIME BARS */
+    .time-bars { display: flex; flex-direction: column; gap: 0.6rem; }
+    .time-bar-row { display: flex; align-items: center; gap: 0.75rem; }
+    .time-bar-name { min-width: 95px; font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .time-bar-track { flex: 1; background: var(--border); border-radius: 999px; height: 18px; position: relative; overflow: visible; }
+    .time-bar-fill { height: 100%; border-radius: 999px; transition: width 0.4s; min-width: 2px; }
+    .time-bar-target-line { position: absolute; top: -3px; bottom: -3px; width: 2px; border-radius: 1px; background: rgba(255,255,255,0.35); pointer-events: none; }
+    .time-bar-label { min-width: 90px; font-size: 0.8rem; color: var(--muted); text-align: right; white-space: nowrap; }
+    .time-bar-tag { min-width: 36px; font-size: 0.72rem; color: var(--muted); }
+
+    /* SUBSTITUTION CARDS */
+    .sub-event { background: var(--card); border: 1px solid var(--border); border-radius: 0.6rem; padding: 0.9rem 1rem; margin-bottom: 0.6rem; }
+    .sub-event-header { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.6rem; }
+    .sub-time-pill { background: var(--accent); color: #fff; padding: 0.25rem 0.65rem; border-radius: 999px; font-weight: 700; font-size: 0.85rem; }
+    .sub-time-pill.halftime { background: var(--gk); color: #000; }
+    .sub-rows { display: flex; flex-direction: column; gap: 0.35rem; }
+    .sub-row { display: flex; align-items: center; gap: 0.6rem; font-size: 0.875rem; flex-wrap: wrap; }
+    .sub-off { color: #ef4444; display: flex; align-items: center; gap: 0.3rem; }
+    .sub-on  { color: #10b981; display: flex; align-items: center; gap: 0.3rem; }
+
+    /* STARTING XI GRID */
+    .xi-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 0.5rem; }
+    .xi-card { background: var(--card2); border-radius: 0.5rem; padding: 0.5rem 0.75rem; display: flex; align-items: center; gap: 0.5rem; font-size: 0.875rem; }
+
+    /* MODAL */
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 200; align-items: center; justify-content: center; padding: 1rem; }
+    .modal-overlay.open { display: flex; }
+    .modal { background: var(--card); border: 1px solid var(--border); border-radius: 1rem; padding: 1.5rem; width: 100%; max-width: 480px; max-height: 90vh; overflow-y: auto; }
+    .modal-title { font-size: 1.1rem; font-weight: 600; margin-bottom: 1.25rem; }
+    .modal-body { display: flex; flex-direction: column; gap: 1rem; }
+    .modal-footer { display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.25rem; }
+
+    /* UTILITY */
+    .flex { display: flex; }
+    .flex-wrap { flex-wrap: wrap; }
+    .gap-1 { gap: 0.4rem; }
+    .gap-2 { gap: 0.75rem; }
+    .items-center { align-items: center; }
+    .justify-between { justify-content: space-between; }
+    .text-muted { color: var(--muted); }
+    .text-sm { font-size: 0.85rem; }
+    .text-xs { font-size: 0.75rem; }
+    .mt-1 { margin-top: 0.5rem; }
+    .mt-2 { margin-top: 1rem; }
+    .mb-1 { margin-bottom: 0.5rem; }
+    .font-bold { font-weight: 600; }
+    .stars { color: var(--gk); }
+    .divider { border: none; border-top: 1px solid var(--border); margin: 1rem 0; }
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    @media (max-width: 600px) {
+      .two-col { grid-template-columns: 1fr; }
+      .container { padding: 1rem; }
+    }
+    @media print {
+      header, .tabs, .btn, .form-group, .card:has(button), .alert-info { display: none !important; }
+      .card { background: white; color: black; border: 1px solid #ccc; }
+      body { background: white; color: black; }
+    }
+
+    /* Timeline SVG container */
+    #timeline-svg-container { overflow-x: auto; }
+    #timeline-svg-container svg { display: block; }
+
+    /* Considerations list */
+    .considerations { list-style: none; display: flex; flex-direction: column; gap: 0.6rem; }
+    .considerations li { display: flex; gap: 0.75rem; align-items: flex-start; font-size: 0.875rem; color: var(--muted); line-height: 1.5; }
+    .considerations li .icon { font-size: 1rem; flex-shrink: 0; margin-top: 0.05rem; }
+    .considerations li strong { color: var(--text); }
+
+    /* MATCH SQUAD SELECTOR */
+    .match-player-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(175px, 1fr)); gap: 0.6rem; }
+    .match-player-tile { background: var(--card2); border: 2px solid var(--border); border-radius: 0.6rem; padding: 0.65rem 0.8rem; cursor: pointer; transition: border-color 0.15s, background 0.15s; user-select: none; }
+    .match-player-tile:hover { border-color: var(--accent); }
+    .match-player-tile.selected { border-color: var(--accent); background: rgba(99,102,241,0.14); }
+    .match-player-tile .tile-header { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.3rem; }
+    .match-player-tile .tile-name { font-size: 0.9rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .match-player-tile .tile-check { width: 17px; height: 17px; border-radius: 50%; border: 2px solid var(--border); flex-shrink: 0; transition: all 0.15s; display: flex; align-items: center; justify-content: center; }
+    .match-player-tile.selected .tile-check { background: var(--accent); border-color: var(--accent); }
+    .match-player-tile.selected .tile-check::after { content: ''; display: block; width: 5px; height: 5px; background: #fff; border-radius: 50%; }
+    .match-banner { background: rgba(99,102,241,0.1); border: 1px solid rgba(99,102,241,0.3); border-radius: 0.5rem; padding: 0.65rem 1rem; font-size: 0.875rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1rem; color: #a5b4fc; }
+
+    /* STARTING XI BUILDER */
+    .xi-layout { display: flex; gap: 1.25rem; align-items: flex-start; }
+    @media (max-width: 680px) { .xi-layout { flex-direction: column; } .pitch-wrap { width: 100% !important; } .pitch-field { width: 100% !important; height: auto !important; aspect-ratio: 200/340; } }
+    .pitch-wrap { width: 210px; flex-shrink: 0; }
+    .pitch-field { position: relative; width: 210px; height: 357px; border-radius: 4px; overflow: hidden; background: repeating-linear-gradient(to bottom, #166534 0px, #166534 17px, #15803d 17px, #15803d 34px); }
+    .pitch-players-overlay { position: absolute; inset: 0; display: flex; flex-direction: column; }
+    .pitch-row { display: flex; align-items: center; justify-content: center; gap: 2px; }
+    .pitch-row-ATT { flex: 75; align-items: flex-start; padding-top: 10px; }
+    .pitch-row-MID { flex: 100; }
+    .pitch-row-DEF { flex: 100; }
+    .pitch-row-GK  { flex: 55; align-items: flex-end; padding-bottom: 12px; }
+    .pit-player { display: flex; flex-direction: column; align-items: center; width: 50px; flex-shrink: 0; gap: 2px; }
+    .pit-dot { width: 36px; height: 36px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.55); display: flex; align-items: center; justify-content: center; font-size: 0.6rem; font-weight: 800; box-shadow: 0 2px 6px rgba(0,0,0,0.5); }
+    .pit-dot-GK  { background: var(--gk);  color: #000; }
+    .pit-dot-DEF { background: var(--def); color: #fff; }
+    .pit-dot-MID { background: var(--mid); color: #fff; }
+    .pit-dot-ATT { background: var(--att); color: #fff; }
+    .pit-name { font-size: 0.6rem; color: rgba(255,255,255,0.93); text-shadow: 0 1px 3px rgba(0,0,0,0.9); text-align: center; line-height: 1.1; max-width: 50px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .pit-mins { font-size: 0.52rem; color: rgba(255,255,255,0.65); text-align: center; line-height: 1.25; max-width: 50px; }
+    .pitch-fm-label { font-size: 0.72rem; text-align: center; color: var(--muted); margin-top: 0.35rem; min-height: 1.2em; }
+    .xi-tiles-wrap { flex: 1; min-width: 0; }
+    .xi-builder-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(175px, 1fr)); gap: 0.6rem; }
+    .xi-builder-tile { background: var(--card2); border: 2px solid var(--border); border-radius: 0.6rem; padding: 0.65rem 0.8rem; transition: border-color 0.15s, background 0.15s; }
+    .xi-builder-tile.starting { border-color: #10b981; background: rgba(16,185,129,0.08); }
+    .xi-builder-tile.benched  { border-color: #f59e0b; background: rgba(245,158,11,0.08); }
+    .pos-start-btn.active-flex { background: #f59e0b; color: #000; border-color: #f59e0b; }
+    .pos-btn-row { display: flex; gap: 0.3rem; flex-wrap: wrap; margin-top: 0.4rem; }
+    .pos-start-btn { padding: 0.18rem 0.45rem; border-radius: 0.3rem; border: 1px solid var(--border); font-size: 0.72rem; font-weight: 700; cursor: pointer; background: transparent; color: var(--muted); transition: all 0.15s; }
+    .pos-start-btn:hover { border-color: var(--muted); color: var(--text); }
+    .pos-start-btn.active-GK  { background: var(--gk);  color: #000; border-color: var(--gk); }
+    .pos-start-btn.active-DEF { background: var(--def); color: #fff; border-color: var(--def); }
+    .pos-start-btn.active-MID { background: var(--mid); color: #fff; border-color: var(--mid); }
+    .pos-start-btn.active-ATT { background: var(--att); color: #fff; border-color: var(--att); }
+    .pos-start-btn.remove-btn { color: #ef4444; border-color: #ef444466; }
+    .pos-start-btn.remove-btn:hover { background: #ef4444; color: #fff; border-color: #ef4444; }
+
+    /* SQUAD FILTER BUTTONS */
+    .squad-filter-btn { background: var(--card2); border: 1px solid var(--border); color: var(--muted); border-radius: 0.4rem; padding: 0.2rem 0.65rem; font-size: 0.78rem; font-weight: 600; cursor: pointer; transition: background 0.12s, color 0.12s, border-color 0.12s; }
+    .squad-filter-btn:hover { border-color: var(--accent); color: var(--text); }
+    .squad-filter-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+    /* SUB EDITOR MODAL */
+    .sub-edit-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.65); z-index:1000; display:flex; align-items:center; justify-content:center; padding:1rem; }
+    .sub-edit-modal { background:var(--card); border:1px solid var(--border); border-radius:1rem; padding:1.5rem; width:100%; max-width:780px; max-height:92vh; overflow-y:auto; }
+    .sub-edit-row-grid { display:grid; grid-template-columns:1fr 1fr 5rem 1.8rem; gap:0.4rem; align-items:center; padding:0.45rem 0.5rem; background:var(--card2); border:1px solid var(--border); border-radius:0.4rem; margin-bottom:0.35rem; }
+    .sub-edit-row-grid select { background:var(--bg); border:1px solid var(--border); color:var(--text); border-radius:0.35rem; padding:0.25rem 0.3rem; font-size:0.8rem; width:100%; }
+    .sub-edit-snapshot { display:flex; gap:1rem; margin-bottom:1rem; border:1px solid var(--border); border-radius:0.6rem; padding:0.75rem; background:var(--card2); flex-wrap:wrap; }
+    .sub-edit-snapshot-pitch { flex:0 0 130px; }
+    .sub-edit-bench-list { flex:1; min-width:150px; }
+    .sub-edit-bench-list .bench-player { display:flex; align-items:center; gap:0.4rem; padding:0.2rem 0; font-size:0.82rem; border-bottom:1px solid var(--border); }
+    .sub-edit-bench-list .bench-player:last-child { border-bottom:none; }
+    .sub-edit-bench-list .bench-dot { width:26px; height:26px; border-radius:50%; background:var(--card); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; font-size:0.6rem; font-weight:700; flex-shrink:0; color:var(--text); }
+
+    /* MATCH LIST */
+    .match-list-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; }
+    .match-list-card { background: var(--card2); border: 1px solid var(--border); border-radius: 0.75rem; padding: 1rem 1.1rem; cursor: pointer; transition: border-color 0.15s, background 0.15s; display: flex; flex-direction: column; gap: 0.4rem; }
+    .match-list-card:hover { border-color: var(--accent); }
+    .match-list-card .mlc-title { font-size: 1rem; font-weight: 700; }
+    .match-list-card .mlc-meta  { font-size: 0.8rem; color: var(--muted); display: flex; flex-wrap: wrap; gap: 0.5rem; }
+    .match-list-card .mlc-badges { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.1rem; }
+    .match-detail-back { display:flex; align-items:center; gap:0.5rem; margin-bottom:1rem; }
+
+    /* PLAN VARIANT TABS */
+    .plan-tabs { display: flex; border-bottom: 1px solid var(--border); margin-bottom: 1.25rem; gap: 0; overflow-x: auto; }
+    .plan-tab-btn { padding: 0.55rem 1.1rem; font-size: 0.9rem; font-weight: 500; cursor: pointer; border: none; background: transparent; color: var(--muted); border-bottom: 2px solid transparent; transition: all 0.15s; white-space: nowrap; flex-shrink: 0; }
+    .plan-tab-btn:hover { color: var(--text); }
+    .plan-tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+    .plan-tab-desc { font-size: 0.8rem; color: var(--muted); font-style: italic; margin-bottom: 1rem; padding: 0.5rem 0.75rem; background: var(--card2); border-radius: 0.4rem; border-left: 3px solid var(--accent); }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">⚽</div>
+  <div>
+    <h1>Match Planner</h1>
+  </div>
+</header>
+
+<div class="tabs">
+  <div class="tab active" data-tab="squad">👥 Squads</div>
+  <div class="tab" data-tab="match">📅 Matches</div>
+  <div class="tab" data-tab="plan">📋 Plan</div>
+  <div class="tab" data-tab="timeline">📊 Timeline</div>
+  <div class="tab" data-tab="season">🏆 Season</div>
+  <div class="tab" data-tab="guide">💡 Guide</div>
+</div>
+
+<div class="container">
+
+  <!-- ========== SQUAD TAB ========== -->
+  <div class="panel active" id="tab-squad">
+
+    <div id="squad-selector-bar" style="margin-bottom:1rem"></div>
+
+    <div class="card">
+      <div class="flex justify-between items-center mb-1">
+        <h2 class="card-title" style="margin:0">Squad Members</h2>
+        <button class="btn btn-primary" onclick="openPlayerModal(null)">+ Add Player</button>
+      </div>
+      <p class="text-muted text-sm" style="margin-bottom:1rem">
+        Add all available players for today. Mark every position they <em>can</em> play, then rate their ability at each. The planner uses this to choose valid substitutions.
+      </p>
+      <div class="flex flex-wrap gap-2" style="margin-bottom:0.75rem;align-items:center">
+        <span style="font-size:0.78rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em">Sort / Filter:</span>
+        <button class="squad-filter-btn active" data-sort="default" onclick="setSquadFilter('default',this)">Default order</button>
+        <button class="squad-filter-btn" data-sort="alpha" onclick="setSquadFilter('alpha',this)">A – Z</button>
+        <button class="squad-filter-btn" id="sort-ability-btn" data-sort="ability" onclick="setSquadFilter('ability',this)" style="display:none">Ability ▼</button>
+        <span style="width:1px;height:1.2rem;background:var(--border);margin:0 0.15rem"></span>
+        <button class="squad-filter-btn" data-pos="all" onclick="setSquadFilter('all',this)">All positions</button>
+        <button class="squad-filter-btn" data-pos="GK" onclick="setSquadFilter('GK',this)">GK</button>
+        <button class="squad-filter-btn" data-pos="DEF" onclick="setSquadFilter('DEF',this)">DEF</button>
+        <button class="squad-filter-btn" data-pos="MID" onclick="setSquadFilter('MID',this)">MID</button>
+        <button class="squad-filter-btn" data-pos="ATT" onclick="setSquadFilter('ATT',this)">ATT</button>
+      </div>
+      <div style="overflow-x:auto">
+        <table class="data-table" id="squad-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Name</th>
+              <th>Positions &amp; Ability</th>
+              <th>Stamina</th>
+              <th>Notes</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="squad-tbody"></tbody>
+        </table>
+      </div>
+      <div id="squad-empty" class="alert alert-info mt-2" style="display:none">No players yet. Click "Add Player" to get started.</div>
+    </div>
+
+    <div class="card">
+      <h2 class="card-title text-muted text-sm" style="text-transform:uppercase;letter-spacing:.05em">Quick squad size check</h2>
+      <div id="squad-summary" class="flex flex-wrap gap-2"></div>
+    </div>
+  </div>
+
+  <!-- ========== MATCH TAB ========== -->
+  <div class="panel" id="tab-match">
+
+    <!-- LIST VIEW -->
+    <div id="match-list-view">
+      <div class="flex justify-between items-center" style="margin-bottom:1rem">
+        <h2 style="font-size:1.1rem;font-weight:700">📅 Matches</h2>
+        <button class="btn btn-primary" onclick="createMatch()">＋ New Match</button>
+      </div>
+      <div id="match-list-grid" class="match-list-grid"></div>
+      <div id="match-list-empty" class="alert alert-info" style="display:none">No matches yet. Click "＋ New Match" to create one.</div>
+    </div>
+
+    <!-- DETAIL VIEW -->
+    <div id="match-detail-view" style="display:none">
+      <div class="match-detail-back">
+        <button class="btn btn-ghost btn-sm" onclick="closeMatchDetail()">&#8592; All Matches</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteActiveMatch()">🗑 Delete Match</button>
+      </div>
+
+      <div class="card">
+        <h2 class="card-title">📅 Match Details</h2>
+        <div class="settings-grid" style="grid-template-columns:repeat(auto-fill,minmax(200px,1fr))">
+          <div class="form-group">
+            <label>Date</label>
+            <input class="form-input" type="date" id="match-date">
+          </div>
+          <div class="form-group">
+            <label>Opponent</label>
+            <input class="form-input" type="text" id="match-opponent" placeholder="e.g. Red Lions FC" autocomplete="off">
+          </div>
+          <div class="form-group">
+            <label>Venue</label>
+            <select class="form-input" id="match-venue">
+              <option value="home">Home</option>
+              <option value="away">Away</option>
+              <option value="neutral">Neutral</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Notes</label>
+            <input class="form-input" type="text" id="match-notes" placeholder="e.g. Cup tie, muddy pitch..." autocomplete="off">
+          </div>
+          <div class="form-group">
+            <label>Squad</label>
+            <select class="form-input" id="match-squad" onchange="setMatchSquad(parseInt(this.value))"></select>
+          </div>
+        </div>
+        <div class="mt-2">
+          <button class="btn btn-primary" onclick="saveMatchDetails()">💾 Save Details</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="flex justify-between items-center" style="margin-bottom:0.75rem">
+          <div>
+            <h2 class="card-title" style="margin:0">Matchday Squad</h2>
+            <p class="text-muted text-sm mt-1">Tick the players who are available for this match.</p>
+          </div>
+          <div class="flex gap-1">
+            <button class="btn btn-ghost btn-sm" onclick="selectAllMatchPlayers()">Select All</button>
+            <button class="btn btn-ghost btn-sm" onclick="clearMatchPlayers()">Clear</button>
+          </div>
+        </div>
+        <div class="match-player-grid" id="match-player-grid"></div>
+        <div id="match-squad-status" class="mt-2"></div>
+        <div class="mt-3">
+          <button class="btn btn-success" onclick="confirmMatchSquad()">✅ Confirm Squad &rarr; Pick Team</button>
+        </div>
+      </div>
+
+    <!-- Starting XI Builder -->
+    <div class="card" id="xi-builder-card" style="display:none">
+      <div class="flex justify-between items-center" style="margin-bottom:0.75rem">
+        <div>
+          <h2 class="card-title" style="margin:0">⚽ Starting XI &amp; Bench</h2>
+          <p class="text-muted text-sm mt-1">Assign starting positions and bench players. Any player can fill any position — no restrictions.</p>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="clearStartingXI();clearBenchXI()">Reset All</button>
+      </div>
+      <div id="xi-builder-status" class="mb-2"></div>
+      <div class="mt-2 mb-3">
+        <button class="btn btn-success" onclick="runGenerateForMatch()">⚡ Generate Plan</button>
+      </div>
+      <div class="xi-layout">
+        <!-- LEFT: live pitch formation view -->
+        <div class="pitch-wrap">
+          <div class="pitch-field">
+            <svg viewBox="0 0 200 340" fill="none" xmlns="http://www.w3.org/2000/svg" style="position:absolute;inset:0;width:100%;height:100%">
+              <rect x="5" y="5" width="190" height="330" stroke="rgba(255,255,255,0.4)" stroke-width="1.5"/>
+              <line x1="5" y1="170" x2="195" y2="170" stroke="rgba(255,255,255,0.4)" stroke-width="1.5"/>
+              <circle cx="100" cy="170" r="25" stroke="rgba(255,255,255,0.28)" stroke-width="1.5"/>
+              <circle cx="100" cy="170" r="2.5" fill="rgba(255,255,255,0.4)"/>
+              <rect x="52" y="5" width="96" height="55" stroke="rgba(255,255,255,0.28)" stroke-width="1.5"/>
+              <rect x="73" y="5" width="54" height="20" stroke="rgba(255,255,255,0.28)" stroke-width="1.5"/>
+              <rect x="52" y="280" width="96" height="55" stroke="rgba(255,255,255,0.28)" stroke-width="1.5"/>
+              <rect x="73" y="315" width="54" height="20" stroke="rgba(255,255,255,0.28)" stroke-width="1.5"/>
+              <circle cx="100" cy="35" r="2.5" fill="rgba(255,255,255,0.35)"/>
+              <circle cx="100" cy="305" r="2.5" fill="rgba(255,255,255,0.35)"/>
+            </svg>
+            <div class="pitch-players-overlay">
+              <div class="pitch-row pitch-row-ATT" id="pitch-row-ATT"></div>
+              <div class="pitch-row pitch-row-MID" id="pitch-row-MID"></div>
+              <div class="pitch-row pitch-row-DEF" id="pitch-row-DEF"></div>
+              <div class="pitch-row pitch-row-GK"  id="pitch-row-GK"></div>
+            </div>
+          </div>
+          <p class="pitch-fm-label" id="pitch-fm-label"></p>
+        </div>
+        <!-- RIGHT: player tiles -->
+        <div class="xi-tiles-wrap">
+          <div class="flex justify-between items-center mb-1">
+            <span style="font-size:0.78rem;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;color:var(--muted)">⚽ Starters — click a position to assign</span>
+            <button class="btn btn-ghost btn-sm" onclick="clearStartingXI()">Reset Starters</button>
+          </div>
+          <div class="xi-builder-grid" id="xi-builder-grid"></div>
+          <div class="flex justify-between items-center" style="margin:1rem 0 0.35rem">
+            <span style="font-size:0.78rem;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;color:var(--muted)">🪑 Bench / Sub Pool — assign sub-in position or ★ for flexible</span>
+            <button class="btn btn-ghost btn-sm" onclick="clearBenchXI()">Reset Bench</button>
+          </div>
+          <p class="text-muted text-sm" style="margin-bottom:0.5rem">If empty, the planner draws subs from all non-starters. Assign players here to restrict the sub pool.</p>
+          <div class="xi-builder-grid" id="xi-bench-grid"></div>
+        </div>
+      </div>
+    </div>
+
+      <!-- Per-match plan output -->
+      <div id="match-plan-output"></div>
+
+    </div><!-- /match-detail-view -->
+  </div>
+
+  <!-- ========== PLAN TAB ========== -->
+  <div class="panel" id="tab-plan">
+    <div id="plan-match-banner" style="display:none" class="match-banner"></div>
+    <div class="card">
+      <h2 class="card-title">⚙️ Game Settings</h2>
+      <div class="settings-grid">
+        <div class="form-group">
+          <label>Game Duration (mins)</label>
+          <input class="form-input" type="number" id="s-gameMins" value="50" min="20" max="120">
+        </div>
+        <div class="form-group">
+          <label>Half-Time (minute)</label>
+          <input class="form-input" type="number" id="s-halfTime" value="25" min="5" max="90">
+        </div>
+        <div class="form-group">
+          <label>Sub Interval (mins)</label>
+          <input class="form-input" type="number" id="s-interval" value="10" min="5" max="25">
+        </div>
+        <div class="form-group">
+          <label>Max Subs Per Break</label>
+          <input class="form-input" type="number" id="s-maxSubs" value="3" min="1" max="7">
+        </div>
+        <div class="form-group">
+          <label>Min. Mins Before Re-sub</label>
+          <input class="form-input" type="number" id="s-minEntry" value="10" min="3" max="30">
+        </div>
+        <div class="form-group">
+          <label>Protect Goalkeeper</label>
+          <select class="form-input" id="s-protectGK">
+            <option value="1">Yes – GK plays full game</option>
+            <option value="0">No – GK can be rotated</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Rolling Subs (re-entry)</label>
+          <select class="form-input" id="s-rolling">
+            <option value="1">Allowed</option>
+            <option value="0">Not allowed</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Quality Weight</label>
+          <select class="form-input" id="s-quality">
+            <option value="1">Moderate (balance & quality)</option>
+            <option value="0">Off (fairness only)</option>
+            <option value="2">High (protect key players)</option>
+          </select>
+        </div>
+      </div>
+      <div class="mt-2 flex gap-2">
+        <button class="btn btn-success" onclick="runGenerate()">⚡ Generate Plan</button>
+        <button class="btn btn-ghost" onclick="clearPlan()">Clear</button>
+      </div>
+    </div>
+
+    <div id="plan-output"></div>
+  </div>
+
+  <!-- ========== TIMELINE TAB ========== -->
+  <div class="panel" id="tab-timeline">
+    <div class="card">
+      <div class="flex justify-between items-center mb-1">
+        <h2 class="card-title" style="margin:0">Playing Time Timeline</h2>
+        <button class="btn btn-ghost btn-sm" onclick="window.print()">🖨 Print</button>
+      </div>
+      <div id="timeline-svg-container">
+        <div class="alert alert-info">Generate a plan first to see the timeline.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== SEASON TAB ========== -->
+  <div class="panel" id="tab-season">
+    <div class="card">
+      <div class="flex justify-between items-center mb-1">
+        <h2 class="card-title" style="margin:0">🏆 Season Tracking</h2>
+        <button class="btn btn-danger btn-sm" onclick="resetSeason()">Reset</button>
+      </div>
+      <p class="text-muted text-sm" style="margin-bottom:1rem">
+        After generating a plan, save it to track cumulative minutes across the season. This helps ensure long-term fairness even when individual game plans vary.
+      </p>
+      <div id="season-content">
+        <div class="alert alert-info">No season data saved yet. Generate a plan and click "Save to Season".</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== GUIDE TAB ========== -->
+  <div class="panel" id="tab-guide">
+    <div class="card">
+      <h2 class="card-title">💡 Things to Consider When Planning Subs</h2>
+      <ul class="considerations">
+        <li><span class="icon">🔀</span><div><strong>Position flexibility</strong> — The more positions each player can cover, the more substitution options you have. A player who can play both DEF and MID is far more useful as a sub than one who can only play MID.</div></li>
+        <li><span class="icon">⭐</span><div><strong>Ability rating per position</strong> — A player might be ★★★★ at DEF but only ★★ at MID. The planner uses these per-position ratings to avoid swaps that significantly weaken your team at a specific position.</div></li>
+        <li><span class="icon">🏃</span><div><strong>Stamina / fitness level</strong> — Midfielders cover the most ground and tire fastest. Players with lower stamina should be rotated more frequently. Mark this in the Squad tab so the planner can prioritise resting them.</div></li>
+        <li><span class="icon">🥅</span><div><strong>Goalkeeper rarely rotates</strong> — Unless you have two capable goalkeepers, the GK should play the full game. Use the "Protect Goalkeeper" setting. Only rotate if your backup GK is also confident in goal.</div></li>
+        <li><span class="icon">🕐</span><div><strong>Half-time is your best sub window</strong> — You can make all substitutions at once without disrupting play. Use it to bring on multiple players simultaneously and re-organise your team shape.</div></li>
+        <li><span class="icon">📊</span><div><strong>Minimum guaranteed playing time</strong> — Decide before the game: "everyone plays at least X minutes." This is important for squad morale, player development, and in many youth leagues it's a rule. 10–15 mins is a reasonable minimum for casual leagues.</div></li>
+        <li><span class="icon">🏆</span><div><strong>Score situation</strong> — The planner can't react to the score. If you're winning by 2 with 10 minutes left, you can afford to bring on weaker or less-played players. If it's a tight game you may want to keep your stronger players on. Always override the plan when the game situation demands it.</div></li>
+        <li><span class="icon">📅</span><div><strong>Season fairness</strong> — A player who played 45 minutes last week should perhaps be prioritised this week even if the game-day plan would otherwise not start them. Use the Season Tracking tab to monitor cumulative minutes.</div></li>
+        <li><span class="icon">🔄</span><div><strong>Rolling substitutions (re-entry)</strong> — Most 7-a-side youth leagues allow players to come back on after being substituted. This gives you far more flexibility and is the default setting. Disable this if your league doesn't allow it.</div></li>
+        <li><span class="icon">🌡️</span><div><strong>Weather and conditions</strong> — Hot or humid weather increases fatigue significantly. Consider shorter sub intervals (every 7–8 mins) in hot weather so no player is overworked.</div></li>
+        <li><span class="icon">🩹</span><div><strong>Same-day injuries or illness</strong> — Players may arrive feeling unwell or carrying a knock. Before generating a plan, remove anyone from the squad who you suspect may need to come off early, or mark them as a low-stamina player.</div></li>
+        <li><span class="icon">📍</span><div><strong>Preferred vs. forced positions</strong> — Some players have a clear preferred position (e.g. always wants to play ATT). Consider their preference when assigning positions. Making a player play out of position repeatedly can affect their enjoyment and development.</div></li>
+        <li><span class="icon">⏱️</span><div><strong>Minimum time before re-subbing</strong> — Don't sub a player on and then off again within a minute or two. The planner enforces a minimum time on field before a player can be subbed off again (default 10 mins). This avoids disrupting rhythm and is respectful to the players.</div></li>
+        <li><span class="icon">🧠</span><div><strong>Know the plan before the game</strong> — Show the substitution schedule to your assistant or a parent helper before kick-off so someone else can track the time and remind you when to make changes. You'll be focused on coaching, not watching the clock.</div></li>
+        <li><span class="icon">🔧</span><div><strong>Override freely</strong> — This planner is a starting point, not a rigid script. If a player is having a great game or another is struggling, ignore the plan and make the call. Trust your judgement.</div></li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h2 class="card-title">📐 How the Algorithm Works</h2>
+      <p class="text-muted text-sm" style="line-height:1.8">
+        The planner divides the game into segments based on your sub interval setting (plus half-time).
+        It calculates a <strong style="color:var(--text)">target playing time</strong> per player: <em>(7 slots × game minutes) ÷ squad size</em>.
+        At each break, it looks for players on the bench who are furthest below their target and players on the field furthest above theirs,
+        matching them by position compatibility. A quality penalty prevents automatically swapping a ★★★★ player for a ★★ replacement.
+        Urgent bench players (who won't reach even 50% of their target if not brought on soon) are priority-flagged and will be subbed in even if the on-field player is slightly below target.
+      </p>
+    </div>
+  </div>
+
+</div><!-- /container -->
+
+<!-- ========== PLAYER MODAL ========== -->
+<div class="modal-overlay" id="player-modal">
+  <div class="modal">
+    <h2 class="modal-title" id="modal-title">Add Player</h2>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Player Name *</label>
+        <input class="form-input" type="text" id="m-name" placeholder="e.g. Alex Johnson" autocomplete="off">
+      </div>
+      <div class="form-group">
+        <label>Positions (all they can play) *</label>
+        <div class="pos-toggles" id="m-pos-toggles">
+          <input type="checkbox" class="pos-toggle-cb" id="m-GK"  value="GK">  <label for="m-GK"  class="pos-toggle-lbl lbl-GK">GK</label>
+          <input type="checkbox" class="pos-toggle-cb" id="m-DEF" value="DEF"> <label for="m-DEF" class="pos-toggle-lbl lbl-DEF">DEF</label>
+          <input type="checkbox" class="pos-toggle-cb" id="m-MID" value="MID"> <label for="m-MID" class="pos-toggle-lbl lbl-MID">MID</label>
+          <input type="checkbox" class="pos-toggle-cb" id="m-ATT" value="ATT"> <label for="m-ATT" class="pos-toggle-lbl lbl-ATT">ATT</label>
+        </div>
+      </div>
+      <div class="form-group" id="m-ability-section">
+        <label>Ability per position (1 = beginner · 10 = excellent)</label>
+        <div class="ability-grid" id="m-ability-grid"></div>
+      </div>
+      <div class="two-col">
+        <div class="form-group">
+          <label>Stamina</label>
+          <select class="form-input" id="m-stamina">
+            <option value="high">High – rarely tires</option>
+            <option value="medium" selected>Medium – average fitness</option>
+            <option value="low">Low – tires quickly</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Preferred position</label>
+          <select class="form-input" id="m-preferred">
+            <option value="">No preference</option>
+            <option value="GK">GK</option>
+            <option value="DEF">DEF</option>
+            <option value="MID">MID</option>
+            <option value="ATT">ATT</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Notes (optional)</label>
+        <input class="form-input" type="text" id="m-notes" placeholder="e.g. prefers right side, arriving late...">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="savePlayer()">Save Player</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// STATE
+// ============================================================
+const POSITIONS = ['GK','DEF','MID','ATT'];
+const FORMATION = { GK:1, DEF:2, MID:3, ATT:1 }; // 7-a-side
+
+const POS_COLOR = { GK:'#f59e0b', DEF:'#3b82f6', MID:'#10b981', ATT:'#ef4444' };
+
+let state = {
+  squads:         [],
+  nextSquadId:    1,
+  activeSquadId:  null,
+  nextId:         1,   // global player ID counter
+  currentPlan:    null,
+  currentPlans:   [],
+  currentPlanIdx: 1,
+  matches:        [],
+  nextMatchId:    1,
+  activeMatchId:  null,
+};
+
+// Default squad (example players)
+const DEFAULT_SQUAD = [
+  { id:1,  name:'Alex',    positions:['GK'],       ability:{GK:8},          stamina:'high',   preferred:'GK',  notes:'First choice keeper' },
+  { id:2,  name:'Ben',     positions:['DEF','MID'], ability:{DEF:8,MID:4},   stamina:'high',   preferred:'DEF', notes:'' },
+  { id:3,  name:'Charlie', positions:['DEF'],       ability:{DEF:8},         stamina:'medium', preferred:'DEF', notes:'' },
+  { id:4,  name:'David',   positions:['DEF','MID'], ability:{DEF:6,MID:6},   stamina:'medium', preferred:'DEF', notes:'' },
+  { id:5,  name:'Ethan',   positions:['MID'],       ability:{MID:10},        stamina:'high',   preferred:'MID', notes:'Captain, box-to-box' },
+  { id:6,  name:'Frank',   positions:['MID','ATT'], ability:{MID:6,ATT:8},   stamina:'medium', preferred:'MID', notes:'' },
+  { id:7,  name:'George',  positions:['MID'],       ability:{MID:6},         stamina:'low',    preferred:'MID', notes:'Gets tired in 2nd half' },
+  { id:8,  name:'Harry',   positions:['ATT','MID'], ability:{ATT:8,MID:4},   stamina:'high',   preferred:'ATT', notes:'' },
+  { id:9,  name:'Ivan',    positions:['DEF','MID'], ability:{DEF:4,MID:6},   stamina:'medium', preferred:'MID', notes:'' },
+  { id:10, name:'Jack',    positions:['MID','ATT'], ability:{MID:6,ATT:6},   stamina:'medium', preferred:'',    notes:'' },
+  { id:11, name:'Kyle',    positions:['ATT'],       ability:{ATT:6},         stamina:'medium', preferred:'ATT', notes:'Pacey striker' },
+];
+
+function blankMatch(id) {
+  const defaultSquadId = state.squads.length ? state.squads[0].id : null;
+  return { id, opponent: '', date: '', venue: 'home', notes: '', squadId: defaultSquadId, squadIds: [], startingXI: [], benchXI: [], plans: null, selectedPlanIdx: 1, squadConfirmed: false };
+}
+
+function blankSquad(id, name) {
+  return { id, name: name || `Squad ${id}`, players: [] };
+}
+
+function initState() {
+  try {
+    const sqs   = localStorage.getItem('ssp-squads');
+    const nsqid = localStorage.getItem('ssp-nextsquadid');
+    const nid   = localStorage.getItem('ssp-nextid');
+    const ms    = localStorage.getItem('ssp-matches');
+    const nmid  = localStorage.getItem('ssp-nextmatchid');
+
+    if (sqs) {
+      state.squads      = JSON.parse(sqs);
+      state.nextSquadId = parseInt(nsqid) || state.squads.length + 1;
+      state.nextId      = parseInt(nid)   || 1;
+    } else {
+      // Migrate old single-squad data
+      const oldSq  = localStorage.getItem('ssp-squad');
+      const players = oldSq ? JSON.parse(oldSq) : DEFAULT_SQUAD.map(p => ({...p}));
+      state.squads      = [{ id: 1, name: 'Main Squad', players }];
+      state.nextSquadId = 2;
+      state.nextId      = parseInt(nid) || 12;
+    }
+    state.activeSquadId = state.squads.length ? state.squads[0].id : null;
+
+    if (ms) {
+      state.matches     = JSON.parse(ms);
+      state.nextMatchId = parseInt(nmid) || state.matches.length + 1;
+      // Migrate: assign first squad to matches that have none
+      state.matches.forEach(m => {
+        if (!m.squadId && state.squads.length) m.squadId = state.squads[0].id;
+      });
+    } else {
+      // Migrate old single-match data if present
+      const oldMt = localStorage.getItem('ssp-match');
+      if (oldMt) {
+        const old = JSON.parse(oldMt);
+        const m   = blankMatch(1);
+        Object.assign(m, { opponent: old.opponent||'', date: old.date||'', venue: old.venue||'home',
+          notes: old.notes||'', squadId: state.squads[0]?.id || null,
+          squadIds: old.squadIds||[], startingXI: old.startingXI||[], benchXI: old.benchXI||[] });
+        state.matches     = [m];
+        state.nextMatchId = 2;
+      }
+    }
+  } catch(e) {
+    state.squads        = [{ id: 1, name: 'Main Squad', players: DEFAULT_SQUAD.map(p => ({...p})) }];
+    state.nextSquadId   = 2;
+    state.nextId        = 12;
+    state.activeSquadId = 1;
+  }
+}
+
+function persist() {
+  try {
+    localStorage.setItem('ssp-squads',       JSON.stringify(state.squads));
+    localStorage.setItem('ssp-nextsquadid',  String(state.nextSquadId));
+    localStorage.setItem('ssp-nextid',       String(state.nextId));
+    localStorage.setItem('ssp-matches',      JSON.stringify(state.matches));
+    localStorage.setItem('ssp-nextmatchid',  String(state.nextMatchId));
+  } catch(e) {}
+}
+
+// ============================================================
+// SQUAD MANAGEMENT
+// ============================================================
+
+function createSquad() {
+  const name = prompt('Squad name:', `Squad ${state.nextSquadId}`);
+  if (name === null) return;
+  const sq = blankSquad(state.nextSquadId++, name.trim() || `Squad ${state.nextSquadId - 1}`);
+  state.squads.push(sq);
+  state.activeSquadId = sq.id;
+  persist();
+  renderSquadSelectorBar();
+  renderSquad();
+}
+
+function deleteSquad(id) {
+  if (state.squads.length <= 1) { alert('You must keep at least one squad.'); return; }
+  const sq = getSquadById(id);
+  if (!sq) return;
+  if (!confirm(`Delete squad "${sq.name}" and all its players? This cannot be undone.`)) return;
+  const affected = state.matches.filter(m => m.squadId === id).length;
+  if (affected > 0 && !confirm(`${affected} match${affected > 1 ? 'es' : ''} are linked to this squad and will lose their squad association. Continue?`)) return;
+  state.matches.forEach(m => { if (m.squadId === id) { m.squadId = null; m.squadIds = []; m.startingXI = []; m.benchXI = []; m.plans = null; m.squadConfirmed = false; } });
+  state.squads = state.squads.filter(s => s.id !== id);
+  if (state.activeSquadId === id) state.activeSquadId = state.squads[0]?.id || null;
+  persist();
+  renderSquadSelectorBar();
+  renderSquad();
+}
+
+function renameSquad(id) {
+  const sq = getSquadById(id);
+  if (!sq) return;
+  const name = prompt('Rename squad:', sq.name);
+  if (name === null || !name.trim()) return;
+  sq.name = name.trim();
+  persist();
+  renderSquadSelectorBar();
+}
+
+function switchSquad(id) {
+  state.activeSquadId = id;
+  squadSort      = 'default';
+  squadPosFilter = 'all';
+  // reset filter button visuals on next render
+  renderSquadSelectorBar();
+  renderSquad();
+}
+
+function setMatchSquad(squadId) {
+  const active = getActiveMatch();
+  if (!active) return;
+  if (active.squadId === squadId) return;
+  if ((active.squadIds.length || active.startingXI.length) &&
+      !confirm('Changing the squad will clear the current player selection and XI. Continue?')) return;
+  active.squadId        = squadId;
+  active.squadIds       = [];
+  active.startingXI     = [];
+  active.benchXI        = [];
+  active.plans          = null;
+  active.squadConfirmed = false;
+  clearPlanState();
+  persist();
+  renderMatchTab();
+}
+
+function renderSquadSelectorBar() {
+  const bar = document.getElementById('squad-selector-bar');
+  if (!bar) return;
+  const active = getActiveEditSquad();
+  bar.innerHTML = `
+    <div class="flex flex-wrap gap-2 items-center">
+      ${state.squads.map(s => `<button class="squad-filter-btn${s.id === state.activeSquadId ? ' active' : ''}" onclick="switchSquad(${s.id})">${esc(s.name)}</button>`).join('')}
+      <button class="btn btn-ghost btn-sm" onclick="createSquad()">＋ New Squad</button>
+      ${active ? `<button class="btn btn-ghost btn-sm" onclick="renameSquad(${active.id})" title="Rename">✏️ Rename</button>` : ''}
+      ${state.squads.length > 1 && active ? `<button class="btn btn-danger btn-sm" onclick="deleteSquad(${active.id})">🗑 Delete</button>` : ''}
+    </div>`;
+}
+
+// ============================================================
+// MATCH MANAGEMENT
+// ============================================================
+
+function getActiveMatch() {
+  return state.matches.find(m => m.id === state.activeMatchId) || null;
+}
+
+function getSquadById(id) {
+  return state.squads.find(s => s.id === id) || null;
+}
+
+function getActiveEditSquad() {
+  return getSquadById(state.activeSquadId) || state.squads[0] || null;
+}
+
+function getActiveSquad() {
+  const m  = getActiveMatch();
+  if (!m) return [];
+  const sq = getSquadById(m.squadId);
+  if (!sq) return [];
+  if (!m.squadIds || m.squadIds.length === 0) return sq.players;
+  return sq.players.filter(p => m.squadIds.includes(p.id));
+}
+
+function createMatch() {
+  const m = blankMatch(state.nextMatchId++);
+  state.matches.push(m);
+  state.activeMatchId = m.id;
+  persist();
+  renderMatchTab();
+}
+
+function openMatchDetail(id) {
+  state.activeMatchId = id;
+  renderMatchTab();
+}
+
+function closeMatchDetail() {
+  saveMatchDetails();
+  state.activeMatchId = null;
+  renderMatchTab();
+}
+
+function deleteActiveMatch() {
+  const m = getActiveMatch();
+  if (!m) return;
+  const label = m.opponent ? `match vs ${m.opponent}` : 'this match';
+  if (!confirm(`Delete ${label}? This cannot be undone.`)) return;
+  state.matches = state.matches.filter(x => x.id !== m.id);
+  state.activeMatchId = null;
+  if (state.currentPlan && state.currentPlan._matchId === m.id) {
+    state.currentPlan = null; state.currentPlans = [];
+  }
+  persist();
+  renderMatchTab();
+}
+
+function renderMatchTab() {
+  const listView   = document.getElementById('match-list-view');
+  const detailView = document.getElementById('match-detail-view');
+  if (!listView || !detailView) return;
+
+  const active = getActiveMatch();
+  if (!active) {
+    // ---- LIST VIEW ----
+    listView.style.display   = '';
+    detailView.style.display = 'none';
+    renderMatchList();
+    return;
+  }
+
+  // ---- DETAIL VIEW ----
+  listView.style.display   = 'none';
+  detailView.style.display = '';
+
+  document.getElementById('match-date').value     = active.date     || '';
+  document.getElementById('match-opponent').value = active.opponent || '';
+  document.getElementById('match-venue').value    = active.venue    || 'home';
+  document.getElementById('match-notes').value    = active.notes    || '';
+
+  // Populate squad selector
+  const squadSel = document.getElementById('match-squad');
+  if (squadSel) {
+    squadSel.innerHTML = state.squads.map(s =>
+      `<option value="${s.id}"${s.id === active.squadId ? ' selected' : ''}>${esc(s.name)}</option>`
+    ).join('');
+    if (!active.squadId && state.squads.length) squadSel.value = state.squads[0].id;
+  }
+
+  const linkedSquad  = getSquadById(active.squadId);
+  const linkedPlayers = linkedSquad ? linkedSquad.players : [];
+  const grid = document.getElementById('match-player-grid');
+  if (!linkedSquad) {
+    grid.innerHTML = '<div class="alert alert-info">No squad linked to this match. Select a squad above to get started.</div>';
+  } else if (!linkedPlayers.length) {
+    grid.innerHTML = '<div class="alert alert-info">The linked squad has no players yet. Add players in the Squads tab first.</div>';
+  } else {
+    grid.innerHTML = linkedPlayers.map(p => {
+      const sel        = active.squadIds.includes(p.id);
+      const staminaCol = {high:'#10b981', medium:'#f59e0b', low:'#ef4444'}[p.stamina] || '#94a3b8';
+      return `
+        <div class="match-player-tile${sel ? ' selected' : ''}" onclick="toggleMatchPlayer(${p.id})">
+          <div class="tile-header"><span class="tile-name">${esc(p.name)}</span><span class="tile-check"></span></div>
+          <div style="display:flex;align-items:center;gap:0.35rem;flex-wrap:wrap">
+            ${p.positions.map(pos => `<span class="badge badge-${pos}" style="font-size:0.68rem;padding:0.1rem 0.35rem">${pos}</span>`).join('')}
+            <span style="margin-left:auto;width:7px;height:7px;border-radius:50%;background:${staminaCol};flex-shrink:0" title="Stamina: ${p.stamina}"></span>
+          </div>
+        </div>`;
+    }).join('');
+  }
+  updateMatchStatus();
+  renderStartingXIBuilder();
+  renderMatchPlanOutput();
+}
+
+function renderMatchList() {
+  const grid  = document.getElementById('match-list-grid');
+  const empty = document.getElementById('match-list-empty');
+  if (!grid) return;
+  if (!state.matches.length) {
+    grid.innerHTML     = '';
+    empty.style.display = '';
+    return;
+  }
+  empty.style.display = 'none';
+  grid.innerHTML = state.matches.map(m => {
+    const title    = m.opponent ? `vs ${esc(m.opponent)}` : 'Unnamed Match';
+    const dateStr  = m.date ? new Date(m.date+'T00:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}) : 'No date';
+    const venueStr = m.venue ? m.venue.charAt(0).toUpperCase() + m.venue.slice(1) : '';
+    const squadName = m.squadId ? (getSquadById(m.squadId)?.name || '') : '';
+    const nSquad   = m.squadIds.length;
+    const nStart   = m.startingXI.length;
+    const hasPlan  = !!m.plans;
+    return `
+      <div class="match-list-card" onclick="openMatchDetail(${m.id})">
+        <div class="mlc-title">${title}</div>
+        <div class="mlc-meta">
+          <span>📅 ${dateStr}</span>
+          ${venueStr ? `<span>📍 ${esc(venueStr)}</span>` : ''}
+          ${squadName ? `<span>👥 ${esc(squadName)}</span>` : ''}
+          ${m.notes  ? `<span>📝 ${esc(m.notes)}</span>` : ''}
+        </div>
+        <div class="mlc-badges">
+          ${nSquad > 0  ? `<span class="badge" style="background:var(--card);color:var(--text)">👥 ${nSquad} players</span>` : '<span class="text-muted text-xs">No players selected</span>'}
+          ${nStart > 0  ? `<span class="badge" style="background:rgba(16,185,129,0.15);color:#10b981">⚽ XI set</span>` : ''}
+          ${hasPlan     ? `<span class="badge" style="background:rgba(99,102,241,0.15);color:#a5b4fc">📋 Plan ready</span>` : ''}
+        </div>
+      </div>`;
+  }).join('');
+}
+
+toggleMatchPlayer = function(id) {
+  const active = getActiveMatch();
+  if (!active) return;
+  const idx = active.squadIds.indexOf(id);
+  if (idx === -1) {
+    active.squadIds.push(id);
+  } else {
+    active.squadIds.splice(idx, 1);
+    active.startingXI = active.startingXI.filter(s => s.id !== id);
+    active.benchXI    = (active.benchXI || []).filter(s => s.id !== id);
+  }
+  persist();
+  document.querySelectorAll('.match-player-tile').forEach(tile => {
+    const mm = tile.getAttribute('onclick').match(/\d+/);
+    if (mm) tile.classList.toggle('selected', active.squadIds.includes(parseInt(mm[0])));
+  });
+  updateMatchStatus();
+  renderStartingXIBuilder();
+};
+
+function selectAllMatchPlayers() {
+  const active = getActiveMatch(); if (!active) return;
+  const sq = getSquadById(active.squadId);
+  active.squadIds = sq ? sq.players.map(p => p.id) : [];
+  persist(); renderMatchTab();
+}
+
+function clearMatchPlayers() {
+  const active = getActiveMatch(); if (!active) return;
+  active.squadIds        = [];
+  active.startingXI      = [];
+  active.benchXI         = [];
+  active.plans           = null;
+  active.selectedPlanIdx = 1;
+  active.squadConfirmed  = false;
+  clearPlanState();
+  persist(); renderMatchTab();
+}
+
+function saveMatchDetails() {
+  const active = getActiveMatch(); if (!active) return;
+  active.date     = document.getElementById('match-date').value;
+  active.opponent = (document.getElementById('match-opponent').value || '').trim();
+  active.venue    = document.getElementById('match-venue').value;
+  active.notes    = (document.getElementById('match-notes').value || '').trim();
+  persist();
+}
+
+function confirmMatchSquad() {
+  saveMatchDetails();
+  const active = getActiveMatch();
+  if (!active) return;
+  if (active.squadIds.length === 0) { alert('Select at least one player before confirming the squad.'); return; }
+  active.squadConfirmed = true;
+  persist();
+  renderMatchTab();
+  // Scroll XI builder into view
+  const card = document.getElementById('xi-builder-card');
+  if (card) card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function updateMatchStatus() {
+  const el = document.getElementById('match-squad-status');
+  if (!el) return;
+  const active = getActiveMatch();
+  const n    = active ? active.squadIds.length : 0;
+  const confirmed = active && active.squadConfirmed;
+  if (n === 0) {
+    el.innerHTML = '<span class="text-muted text-sm">No players selected yet.</span>';
+  } else {
+    const starters = Math.min(n, 7);
+    const subs     = Math.max(n - starters, 0);
+    el.innerHTML = `<div class="flex gap-2 flex-wrap items-center">
+      <span class="badge" style="background:var(--card2);color:var(--text)">👥 ${n} player${n!==1?'s':''}</span>
+      ${subs > 0 ? `<span class="badge" style="background:var(--card2);color:var(--text)">🔄 ${subs} sub${subs!==1?'s':''}</span>` : ''}
+      ${confirmed ? '<span class="badge" style="background:rgba(16,185,129,0.15);color:#10b981">✅ Squad confirmed</span>' : '<span class="text-muted text-sm">Click <strong>Confirm Squad</strong> when ready.</span>'}
+    </div>`;
+  }
+}
+
+function renderStartingXIBuilder() {
+  const card   = document.getElementById('xi-builder-card');
+  const grid   = document.getElementById('xi-builder-grid');
+  const bGrid  = document.getElementById('xi-bench-grid');
+  const status = document.getElementById('xi-builder-status');
+  if (!card || !grid) return;
+
+  const matchSquad = getActiveSquad();
+  const active = getActiveMatch();
+  // Treat as confirmed if flag is set, or if there's already XI data (migrated matches)
+  const isConfirmed = active && (active.squadConfirmed || active.startingXI.length > 0);
+  if (!active || !isConfirmed) { card.style.display = 'none'; return; }
+  card.style.display = '';
+
+  const xi  = active ? active.startingXI : [];
+  const bxi = active ? (active.benchXI || []) : [];
+
+  // --- Starters grid: all matchday squad players ---
+  grid.innerHTML = matchSquad.map(p => {
+    const slot       = xi.find(s => s.id === p.id);
+    const isStart    = !!slot;
+    const staminaCol = {high:'#10b981', medium:'#f59e0b', low:'#ef4444'}[p.stamina] || '#94a3b8';
+    return `
+      <div class="xi-builder-tile${isStart ? ' starting' : ''}">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:0.4rem;margin-bottom:0.3rem">
+          <span style="font-size:0.875rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(p.name)}</span>
+          <span style="display:flex;align-items:center;gap:0.3rem">
+            ${isStart ? `<span class="badge badge-${slot.position}" style="font-size:0.68rem">${slot.position}</span>` : `<span style="width:7px;height:7px;border-radius:50%;background:${staminaCol};flex-shrink:0" title="Stamina: ${p.stamina}"></span>`}
+          </span>
+        </div>
+        <div class="pos-btn-row">
+          ${POSITIONS.map(pos => `<button class="pos-start-btn${slot && slot.position === pos ? ' active-'+pos : ''}" onclick="setStartingSlot(${p.id},'${pos}')">${pos}</button>`).join('')}
+          ${isStart ? `<button class="pos-start-btn remove-btn" onclick="removeStartingSlot(${p.id})">✕</button>` : ''}
+        </div>
+      </div>`;
+  }).join('');
+
+  // --- Bench grid: non-starters only ---
+  const nonStarters = matchSquad.filter(p => !xi.find(s => s.id === p.id));
+  if (bGrid) {
+    if (nonStarters.length === 0) {
+      bGrid.innerHTML = '<span class="text-muted text-sm">All matchday players are in the starting XI.</span>';
+    } else {
+      bGrid.innerHTML = nonStarters.map(p => {
+        const bslot      = bxi.find(s => s.id === p.id);
+        const inBench    = !!bslot;
+        const isFlex     = inBench && bslot.position === null;
+        const staminaCol = {high:'#10b981', medium:'#f59e0b', low:'#ef4444'}[p.stamina] || '#94a3b8';
+        return `
+          <div class="xi-builder-tile${inBench ? ' benched' : ''}" style="${inBench ? '' : 'opacity:0.55'}">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:0.4rem;margin-bottom:0.3rem">
+              <span style="font-size:0.875rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(p.name)}</span>
+              <span style="display:flex;align-items:center;gap:0.3rem">
+                ${inBench && bslot.position ? `<span class="badge badge-${bslot.position}" style="font-size:0.68rem">${bslot.position}</span>` : inBench ? `<span style="font-size:0.72rem;color:#f59e0b;font-weight:700">★ flex</span>` : `<span style="width:7px;height:7px;border-radius:50%;background:${staminaCol};flex-shrink:0" title="Stamina: ${p.stamina}"></span>`}
+              </span>
+            </div>
+            <div class="pos-btn-row">
+              ${POSITIONS.map(pos => `<button class="pos-start-btn${bslot && bslot.position === pos ? ' active-'+pos : ''}" onclick="setBenchSlot(${p.id},'${pos}')">${pos}</button>`).join('')}
+              <button class="pos-start-btn${isFlex ? ' active-flex' : ''}" onclick="setBenchSlot(${p.id},null)" title="Flexible — sub on in any suitable position">★</button>
+              ${inBench ? `<button class="pos-start-btn remove-btn" onclick="removeBenchSlot(${p.id})">✕</button>` : ''}
+            </div>
+          </div>`;
+      }).join('');
+    }
+  }
+
+  // --- Status bar ---
+  const count  = xi.length;
+  const hasGK  = xi.some(s => s.position === 'GK');
+  const bCount = bxi.length;
+  const fmText = count === 0 ? '' : ' (' + POSITIONS.map(p => { const c = xi.filter(s=>s.position===p).length; return c ? c+'×'+p : ''; }).filter(Boolean).join('-') + ')';
+  let statusMsg, statusCol;
+  if (count === 0 && bCount === 0) {
+    statusMsg = 'Auto — planner picks starting XI and uses all available as subs';
+    statusCol = 'var(--muted)';
+  } else if (count < 7) {
+    statusMsg = `${count}/7 starters${fmText}${bCount > 0 ? ` · ${bCount} bench` : ''}`;
+    statusCol = '#6366f1';
+  } else if (count === 7 && !hasGK) {
+    statusMsg = `⚠ 7 starters but no goalkeeper assigned${fmText}${bCount > 0 ? ` · ${bCount} bench` : ''}`;
+    statusCol = '#f59e0b';
+  } else if (count === 7) {
+    statusMsg = `✓ Starting XI ready${fmText}${bCount > 0 ? ` · ${bCount} bench` : ' · bench: all available'}`;
+    statusCol = '#10b981';
+  } else {
+    statusMsg = `⚠ ${count} starters — remove ${count-7} before generating`;
+    statusCol = '#ef4444';
+  }
+  status.innerHTML = `<span style="color:${statusCol};font-size:0.875rem">${statusMsg}</span>`;
+  renderPitchView();
+}
+
+function renderPitchView() {
+  const matchSquad = getActiveSquad();
+  const active = getActiveMatch();
+  const xi    = active ? active.startingXI : [];
+  const label = document.getElementById('pitch-fm-label');
+
+  const byPos = { ATT: [], MID: [], DEF: [], GK: [] };
+  xi.forEach(s => {
+    if (Object.prototype.hasOwnProperty.call(byPos, s.position)) {
+      const p = matchSquad.find(pl => pl.id === s.id);
+      if (p) byPos[s.position].push(p);
+    }
+  });
+
+  ['ATT', 'MID', 'DEF', 'GK'].forEach(pos => {
+    const rowEl = document.getElementById('pitch-row-' + pos);
+    if (!rowEl) return;
+    rowEl.innerHTML = byPos[pos].map(p => {
+      const parts    = p.name.trim().split(/\s+/);
+      const initials = parts.length >= 2
+        ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+        : p.name.substring(0, 2).toUpperCase();
+      const shortName = parts[0];
+      return `<div class="pit-player"><div class="pit-dot pit-dot-${pos}">${initials}</div><div class="pit-name">${esc(shortName)}</div></div>`;
+    }).join('');
+  });
+
+  if (label) {
+    if (xi.length === 0) {
+      label.textContent = 'Assign starters to see formation';
+    } else {
+      const fmParts = ['GK','DEF','MID','ATT']
+        .map(pos => byPos[pos].length > 0 ? byPos[pos].length + '\u00d7' + pos : '')
+        .filter(Boolean);
+      label.textContent = fmParts.join(' \u00b7 ') + (xi.length < 7 ? ' (' + xi.length + '/7)' : '');
+    }
+  }
+}
+
+// Pure-string version — used when building HTML for the Plan tab
+function buildPitchHtml(startingXI) {
+  const byPos = { ATT: [], MID: [], DEF: [], GK: [] };
+  startingXI.forEach(p => {
+    if (byPos[p.currentPosition]) byPos[p.currentPosition].push(p);
+  });
+
+  const rowHtml = pos => byPos[pos].map(p => {
+    const parts    = p.name.trim().split(/\s+/);
+    const initials = parts.length >= 2
+      ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+      : p.name.substring(0, 2).toUpperCase();
+    return `<div class="pit-player"><div class="pit-dot pit-dot-${pos}">${initials}</div><div class="pit-name">${esc(parts[0])}</div></div>`;
+  }).join('');
+
+  const fmLabel = ['GK','DEF','MID','ATT']
+    .map(pos => byPos[pos].length > 0 ? byPos[pos].length + '\u00d7' + pos : '')
+    .filter(Boolean).join(' \u00b7 ');
+
+  return `
+    <div class="pitch-field" style="width:100%;height:auto;aspect-ratio:200/340">
+      <svg viewBox="0 0 200 340" fill="none" xmlns="http://www.w3.org/2000/svg" style="position:absolute;inset:0;width:100%;height:100%">
+        <rect x="5" y="5" width="190" height="330" stroke="rgba(255,255,255,0.4)" stroke-width="1.5"/>
+        <line x1="5" y1="170" x2="195" y2="170" stroke="rgba(255,255,255,0.4)" stroke-width="1.5"/>
+        <circle cx="100" cy="170" r="25" stroke="rgba(255,255,255,0.28)" stroke-width="1.5"/>
+        <circle cx="100" cy="170" r="2.5" fill="rgba(255,255,255,0.4)"/>
+        <rect x="52" y="5" width="96" height="55" stroke="rgba(255,255,255,0.28)" stroke-width="1.5"/>
+        <rect x="73" y="5" width="54" height="20" stroke="rgba(255,255,255,0.28)" stroke-width="1.5"/>
+        <rect x="52" y="280" width="96" height="55" stroke="rgba(255,255,255,0.28)" stroke-width="1.5"/>
+        <rect x="73" y="315" width="54" height="20" stroke="rgba(255,255,255,0.28)" stroke-width="1.5"/>
+        <circle cx="100" cy="35" r="2.5" fill="rgba(255,255,255,0.35)"/>
+        <circle cx="100" cy="305" r="2.5" fill="rgba(255,255,255,0.35)"/>
+      </svg>
+      <div class="pitch-players-overlay">
+        <div class="pitch-row pitch-row-ATT">${rowHtml('ATT')}</div>
+        <div class="pitch-row pitch-row-MID">${rowHtml('MID')}</div>
+        <div class="pitch-row pitch-row-DEF">${rowHtml('DEF')}</div>
+        <div class="pitch-row pitch-row-GK">${rowHtml('GK')}</div>
+      </div>
+    </div>
+    <p class="pitch-fm-label">${esc(fmLabel)}</p>`;
+}
+
+function setStartingSlot(playerId, position) {
+  const active = getActiveMatch(); if (!active) return;
+  const xi  = active.startingXI;
+  const idx = xi.findIndex(s => s.id === playerId);
+  if (idx !== -1) {
+    if (xi[idx].position === position) xi.splice(idx, 1);
+    else xi[idx].position = position;
+  } else {
+    xi.push({ id: playerId, position });
+    active.benchXI = (active.benchXI || []).filter(s => s.id !== playerId);
+  }
+  persist(); renderStartingXIBuilder();
+}
+
+function removeStartingSlot(playerId) {
+  const active = getActiveMatch(); if (!active) return;
+  active.startingXI = active.startingXI.filter(s => s.id !== playerId);
+  persist(); renderStartingXIBuilder();
+}
+
+function clearStartingXI() {
+  const active = getActiveMatch(); if (!active) return;
+  active.startingXI = [];
+  active.plans      = null;
+  active.selectedPlanIdx = 1;
+  clearPlanState();
+  persist(); renderStartingXIBuilder();
+  renderMatchPlanOutput();
+}
+
+function setBenchSlot(playerId, position) {
+  const active = getActiveMatch(); if (!active) return;
+  const bxi  = active.benchXI || (active.benchXI = []);
+  const idx  = bxi.findIndex(s => s.id === playerId);
+  if (idx !== -1) {
+    if (position === null) {
+      if (bxi[idx].position === null) bxi.splice(idx, 1);
+      else bxi[idx].position = null;
+    } else {
+      if (bxi[idx].position === position) bxi[idx].position = null;
+      else bxi[idx].position = position;
+    }
+  } else {
+    bxi.push({ id: playerId, position });
+  }
+  persist(); renderStartingXIBuilder();
+}
+
+function removeBenchSlot(playerId) {
+  const active = getActiveMatch(); if (!active) return;
+  active.benchXI = (active.benchXI || []).filter(s => s.id !== playerId);
+  persist(); renderStartingXIBuilder();
+}
+
+function clearBenchXI() {
+  const active = getActiveMatch(); if (!active) return;
+  active.benchXI = [];
+  active.plans   = null;
+  active.selectedPlanIdx = 1;
+  clearPlanState();
+  persist(); renderStartingXIBuilder();
+  renderMatchPlanOutput();
+}
+
+function renderPlanMatchBanner() {
+  const el = document.getElementById('plan-match-banner');
+  if (!el) return;
+  const m = getActiveMatch();
+  if (!m) { el.style.display = 'none'; el.innerHTML = ''; return; }
+  const n = m.squadIds.length;
+  const hasDetails = m.opponent || m.date;
+  if (!hasDetails && n === 0) { el.style.display = 'none'; el.innerHTML = ''; return; }
+  el.style.display = '';
+  const opp   = m.opponent ? `vs <strong style="color:var(--text)">${esc(m.opponent)}</strong>` : 'Upcoming Match';
+  const date  = m.date   ? ` &nbsp;·&nbsp; ${new Date(m.date+'T00:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})}` : '';
+  const venue = m.venue  ? ` &nbsp;·&nbsp; ${m.venue.charAt(0).toUpperCase()+m.venue.slice(1)}` : '';
+  const squad = n > 0    ? ` &nbsp;·&nbsp; <strong style="color:var(--text)">${n} players</strong> in matchday squad` : ' &nbsp;·&nbsp; Using full roster';
+  el.innerHTML = `<span>📅 ${opp}${date}${venue}${squad}</span>
+    <button class="btn btn-ghost btn-sm" onclick="
+      document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+      document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+      document.querySelector('[data-tab=match]').classList.add('active');
+      document.getElementById('tab-match').classList.add('active');
+      renderMatchTab();
+    ">✏️ Edit Match</button>`;
+}
+
+// ============================================================
+// TABS
+// ============================================================
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+    if (tab.dataset.tab === 'timeline' && state.currentPlan) renderTimeline();
+    if (tab.dataset.tab === 'season') renderSeasonStats();
+    if (tab.dataset.tab === 'match') renderMatchTab();
+    if (tab.dataset.tab === 'plan') {
+      renderPlanMatchBanner();
+      const active = getActiveMatch();
+      if (active && active.plans) {
+        state.currentPlans   = active.plans;
+        state.currentPlanIdx = active.selectedPlanIdx || 1;
+        state.currentPlan    = active.plans[state.currentPlanIdx].plan;
+        renderPlansToEl('plan-output');
+      }
+    }
+  });
+});
+
+// ============================================================
+// SQUAD RENDERING
+// ============================================================
+// Squad sort/filter state
+let squadSort = 'default'; // 'default' | 'alpha' | 'ability'
+let squadPosFilter = 'all'; // 'all' | 'GK' | 'DEF' | 'MID' | 'ATT'
+
+function setSquadFilter(value, btn) {
+  const isSort = value === 'default' || value === 'alpha' || value === 'ability';
+  if (isSort) {
+    squadSort = value;
+    document.querySelectorAll('.squad-filter-btn[data-sort]').forEach(b => b.classList.remove('active'));
+  } else {
+    squadPosFilter = value;
+    document.querySelectorAll('.squad-filter-btn[data-pos]').forEach(b => b.classList.remove('active'));
+    // Reset to default sort when switching to "all positions" (ability sort no longer valid)
+    if (value === 'all' && squadSort === 'ability') {
+      squadSort = 'default';
+      document.querySelectorAll('.squad-filter-btn[data-sort]').forEach(b => b.classList.remove('active'));
+      document.querySelector('.squad-filter-btn[data-sort="default"]').classList.add('active');
+    }
+  }
+  btn.classList.add('active');
+  // Show/hide the Ability sort button — only relevant when a specific position is selected
+  const abilityBtn = document.getElementById('sort-ability-btn');
+  if (abilityBtn) abilityBtn.style.display = squadPosFilter !== 'all' ? '' : 'none';
+  renderSquad();
+}
+
+function renderSquad() {
+  const tbody = document.getElementById('squad-tbody');
+  const empty = document.getElementById('squad-empty');
+  tbody.innerHTML = '';
+
+  const editSquad = getActiveEditSquad();
+  const allPlayers = editSquad ? editSquad.players : [];
+
+  let players = [...allPlayers];
+  if (squadPosFilter !== 'all') players = players.filter(p => p.positions.includes(squadPosFilter));
+  if (squadSort === 'alpha') players.sort((a, b) => a.name.localeCompare(b.name));
+  if (squadSort === 'ability' && squadPosFilter !== 'all') {
+    players.sort((a, b) => (b.ability[squadPosFilter] || 0) - (a.ability[squadPosFilter] || 0));
+  }
+
+  if (allPlayers.length === 0) {
+    empty.textContent = 'No players yet. Click "Add Player" to get started.';
+    empty.style.display = '';
+  } else if (players.length === 0) {
+    empty.textContent = `No players found with position: ${squadPosFilter}.`;
+    empty.style.display = '';
+  } else {
+    empty.style.display = 'none';
+  }
+
+  players.forEach((p, i) => {
+    // Build ability spans — filtered position shown first, prominently; others greyed out
+    const filteredPos = squadPosFilter !== 'all' ? squadPosFilter : null;
+    const orderedPositions = filteredPos
+      ? [filteredPos, ...p.positions.filter(pos => pos !== filteredPos)]
+      : p.positions;
+
+    const abilityHtml = orderedPositions.map(pos => {
+      const r          = p.ability[pos] || 1;
+      const isFiltered = pos === filteredPos;
+      const color      = isFiltered ? POS_COLOR[pos] : 'var(--muted)';
+      const opacity    = isFiltered ? 1 : 0.45;
+      const fontSize   = isFiltered ? '0.85rem' : '0.75rem';
+      const weight     = isFiltered ? '700' : '500';
+      return `<span style="color:${color};font-size:${fontSize};font-weight:${weight};opacity:${opacity};white-space:nowrap">${pos} <strong>${r}</strong><span style="opacity:0.55">/10</span></span>`;
+    }).join(' &ensp;');
+
+    const staminaColour = {high:'#10b981', medium:'#f59e0b', low:'#ef4444'}[p.stamina] || '#94a3b8';
+    const staminaLabel  = {high:'High', medium:'Med', low:'Low'}[p.stamina] || '?';
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="text-muted text-xs">${i+1}</td>
+      <td><strong>${esc(p.name)}</strong>${p.preferred ? `<span class="text-muted text-xs"> (pref: ${p.preferred})</span>` : ''}</td>
+      <td>
+        <div class="flex gap-1 flex-wrap" style="margin-bottom:0.3rem">
+          ${orderedPositions.map(pos => `<span class="badge badge-${pos}" style="${pos === filteredPos ? '' : 'opacity:0.4'}">${pos}</span>`).join('')}
+        </div>
+        <div style="display:flex;gap:0.75rem;flex-wrap:wrap">${abilityHtml}</div>
+      </td>
+      <td><span style="color:${staminaColour};font-size:0.8rem;font-weight:600">${staminaLabel}</span></td>
+      <td class="text-muted text-sm">${esc(p.notes||'')}</td>
+      <td>
+        <div class="flex gap-1">
+          <button class="btn btn-ghost btn-sm btn-icon" title="Edit" onclick="openPlayerModal(${p.id})">✏️</button>
+          <button class="btn btn-danger btn-sm btn-icon" title="Remove" onclick="removePlayer(${p.id})">✕</button>
+        </div>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  renderSquadSummary();
+}
+
+function renderSquadSummary() {
+  const summary = document.getElementById('squad-summary');
+  const sq = getActiveEditSquad();
+  const players = sq ? sq.players : [];
+  const total = players.length;
+  const posCount = {};
+  POSITIONS.forEach(p => posCount[p] = players.filter(pl => pl.positions.includes(p)).length);
+  summary.innerHTML = `
+    <span class="badge" style="background:var(--card2);color:var(--text)">👥 ${total} players</span>
+    ${POSITIONS.map(pos => `<span class="badge badge-${pos}" title="${posCount[pos]} players can play ${pos}">${pos}: ${posCount[pos]}</span>`).join('')}
+    ${total < 7 ? '<span class="badge" style="background:#ef4444;color:#fff">⚠ Need at least 7</span>' : ''}
+  `;
+}
+
+// ============================================================
+// PLAYER MODAL
+// ============================================================
+let editingId = null;
+
+function openPlayerModal(id) {
+  editingId = id;
+  const sq = getActiveEditSquad();
+  const p = id !== null ? (sq ? sq.players.find(x => x.id === id) : null) : null;
+  document.getElementById('modal-title').textContent = p ? 'Edit Player' : 'Add Player';
+  document.getElementById('m-name').value = p ? p.name : '';
+  document.getElementById('m-notes').value = p ? (p.notes || '') : '';
+  document.getElementById('m-stamina').value = p ? (p.stamina || 'medium') : 'medium';
+  document.getElementById('m-preferred').value = p ? (p.preferred || '') : '';
+  POSITIONS.forEach(pos => {
+    document.getElementById('m-' + pos).checked = p ? p.positions.includes(pos) : false;
+  });
+  updateAbilityGrid();
+  if (p) {
+    p.positions.forEach(pos => {
+      const el = document.getElementById('m-ab-' + pos);
+      const vl = document.getElementById('m-ab-val-' + pos);
+      if (el) { el.value = p.ability[pos] || 5; }
+      if (vl) { vl.textContent = p.ability[pos] || 5; }
+    });
+  }
+  document.getElementById('player-modal').classList.add('open');
+  setTimeout(() => document.getElementById('m-name').focus(), 50);
+}
+
+function closeModal() {
+  document.getElementById('player-modal').classList.remove('open');
+}
+
+function updateAbilityGrid() {
+  const grid = document.getElementById('m-ability-grid');
+  const checked = POSITIONS.filter(pos => document.getElementById('m-' + pos).checked);
+  grid.innerHTML = checked.map(pos => `
+    <div class="ability-item">
+      <span class="pos-label badge badge-${pos}">${pos}</span>
+      <input type="range" id="m-ab-${pos}" min="1" max="10" value="5"
+        oninput="document.getElementById('m-ab-val-${pos}').textContent=this.value">
+      <span class="ability-val" id="m-ab-val-${pos}">3</span>
+    </div>
+  `).join('');
+}
+
+POSITIONS.forEach(pos => {
+  document.getElementById('m-' + pos).addEventListener('change', updateAbilityGrid);
+});
+
+document.getElementById('player-modal').addEventListener('click', e => {
+  if (e.target === e.currentTarget) closeModal();
+});
+
+function savePlayer() {
+  const name = document.getElementById('m-name').value.trim();
+  if (!name) { alert('Please enter a player name.'); return; }
+  const positions = POSITIONS.filter(pos => document.getElementById('m-' + pos).checked);
+  if (!positions.length) { alert('Please select at least one position.'); return; }
+  const ability = {};
+  positions.forEach(pos => {
+    const el = document.getElementById('m-ab-' + pos);
+    ability[pos] = el ? parseInt(el.value) : 5;
+  });
+  const stamina   = document.getElementById('m-stamina').value;
+  const preferred = document.getElementById('m-preferred').value;
+  const notes     = document.getElementById('m-notes').value.trim();
+
+  if (editingId !== null) {
+    const sq = getActiveEditSquad();
+    const p = sq ? sq.players.find(x => x.id === editingId) : null;
+    if (p) Object.assign(p, { name, positions, ability, stamina, preferred, notes });
+  } else {
+    const sq = getActiveEditSquad();
+    if (sq) sq.players.push({ id: state.nextId++, name, positions, ability, stamina, preferred, notes });
+  }
+  persist();
+  renderSquad();
+  closeModal();
+}
+
+function removePlayer(id) {
+  if (!confirm('Remove this player?')) return;
+  const sq = getActiveEditSquad();
+  if (sq) sq.players = sq.players.filter(x => x.id !== id);
+  persist();
+  renderSquad();
+}
+
+// ============================================================
+// SETTINGS HELPERS
+// ============================================================
+function getSettings() {
+  const active = getActiveMatch();
+  const xi  = active ? active.startingXI : [];
+  const bxi = active ? (active.benchXI || []) : [];
+  return {
+    gameMins:        parseInt(document.getElementById('s-gameMins').value) || 50,
+    halfTime:        parseInt(document.getElementById('s-halfTime').value) || 25,
+    interval:        parseInt(document.getElementById('s-interval').value) || 10,
+    maxSubs:         parseInt(document.getElementById('s-maxSubs').value)  || 3,
+    minEntry:        parseInt(document.getElementById('s-minEntry').value) || 10,
+    protectGK:       document.getElementById('s-protectGK').value === '1',
+    rolling:         document.getElementById('s-rolling').value   === '1',
+    quality:         document.getElementById('s-quality').value,
+    manualStartingXI: xi.length > 0 ? xi.map(s => ({...s})) : null,
+    manualBenchXI:    bxi.length > 0 ? bxi.map(s => ({...s})) : null,
+  };
+}
+
+// ============================================================
+// PLAN GENERATION ALGORITHM
+// ============================================================
+
+function buildBreakPoints(gameMins, halfTime, interval) {
+  const pts = new Set([halfTime]);
+  for (let t = interval; t < gameMins; t += interval) {
+    if (Math.abs(t - halfTime) >= Math.floor(interval / 2)) pts.add(t);
+  }
+  return [...pts].sort((a, b) => a - b);
+}
+
+// Backtracking assignment: fills position slots with players
+function tryFill(squad, slots, idx, used, result) {
+  if (idx === slots.length) return true;
+  const pos = slots[idx];
+  const eligible = squad
+    .filter(p => p.positions.includes(pos) && !used.has(p.id))
+    .sort((a, b) => (b.ability[pos]||0) - (a.ability[pos]||0));
+  for (const pl of eligible) {
+    used.add(pl.id);
+    result.push({ ...pl, currentPosition: pos });
+    if (tryFill(squad, slots, idx + 1, used, result)) return true;
+    result.pop();
+    used.delete(pl.id);
+  }
+  return false;
+}
+
+function pickStartingXI(squad) {
+  // Sort slots by scarcity (fewest eligible players first to avoid dead-ends)
+  const slots = ['GK','DEF','DEF','MID','MID','MID','ATT'];
+  slots.sort((a, b) => squad.filter(p=>p.positions.includes(a)).length - squad.filter(p=>p.positions.includes(b)).length);
+  const result = [];
+  if (!tryFill(squad, slots, 0, new Set(), result)) return null;
+  const order = {GK:0, DEF:1, MID:2, ATT:3};
+  result.sort((a,b) => order[a.currentPosition] - order[b.currentPosition]);
+  return result;
+}
+
+// Stamina bonus: low stamina players get a bonus for coming off sooner
+function staminaBonus(player) {
+  return { high: -2, medium: 0, low: 3 }[player.stamina] || 0;
+}
+
+// Quality weight — can vary by half for Start Strong / End Strong modes
+function getQualityWeight(quality, currentTime, halfTime) {
+  if (quality === 'start_strong') return currentTime <= halfTime ? 4.5 : 0.3;
+  if (quality === 'end_strong')   return currentTime <= halfTime ? 0.3 : 4.5;
+  const fixed = { '0': 0, '1': 1.5, '2': 3 };
+  return fixed[quality] ?? 1.5;
+}
+
+function findBestSwap(onField, bench, minsPlayed, lastEntryTime, currentTime, targetMins, settings) {
+  const { gameMins, protectGK, minEntry, quality, halfTime } = settings;
+  const minsRemaining = gameMins - currentTime;
+  if (minsRemaining < 5) return null;
+
+  let bestSwap = null;
+  let bestScore = -Infinity;
+  const qualityWeight = getQualityWeight(quality, currentTime, halfTime);
+
+  for (const offPlayer of onField) {
+    if (protectGK && offPlayer.currentPosition === 'GK') continue;
+    // Respect minimum time on field before this player can come off
+    const onSinceEntry = currentTime - (lastEntryTime[offPlayer.id] ?? 0);
+    if (onSinceEntry < minEntry) continue;
+
+    const offMins = minsPlayed[offPlayer.id] || 0;
+    const pos     = offPlayer.currentPosition;
+
+    for (const onPlayer of bench) {
+      // If the bench player has an explicit sub-in position, only swap for that position;
+      // otherwise fall back to their configured positions.
+      const benchPos = onPlayer.benchPosition;
+      if (benchPos) {
+        if (benchPos !== pos) continue;
+      } else if (!onPlayer.positions.includes(pos)) {
+        continue;
+      }
+      const swapPos = benchPos || pos;
+
+      const onMins  = minsPlayed[onPlayer.id] || 0;
+
+      // Core trigger: swap when on-field player has played noticeably more than bench player.
+      // Using minEntry as the minimum worthwhile gap — e.g. 10 mins means
+      // "only rotate if someone has had at least 10 mins more pitch time".
+      const relDiff = offMins - onMins + staminaBonus(offPlayer);
+      if (relDiff < minEntry) continue;
+
+      // Urgency: will this bench player reach even 50% of their fair share if not subbed on soon?
+      const potentialMins = onMins + minsRemaining;
+      const isUrgent = potentialMins < targetMins * 0.5;
+
+      const qualityDiff    = ((offPlayer.ability[pos] || 5) - (onPlayer.ability[swapPos] || 5));
+      const qualityPenalty = Math.max(0, qualityDiff * qualityWeight);
+
+      // Bigger relative gap = better candidate; penalise quality drops
+      let score = relDiff - qualityPenalty;
+      if (isUrgent) score += 15;
+
+      if (score > 0 && score > bestScore) {
+        bestScore = score;
+        bestSwap = { off: offPlayer, on: onPlayer, position: swapPos };
+      }
+    }
+  }
+  return bestSwap;
+}
+
+function generatePlan(squad, settings) {
+  const { gameMins, halfTime, interval, maxSubs, manualStartingXI, manualBenchXI } = settings;
+
+  if (squad.length < 7) throw new Error('You need at least 7 players to form a team.');
+
+  const breakPoints = buildBreakPoints(gameMins, halfTime, interval);
+  const target = (7 * gameMins) / squad.length;
+
+  const minsPlayed   = {};
+  const lastEntry    = {};
+  squad.forEach(p => { minsPlayed[p.id] = 0; });
+
+  let onField;
+  if (manualStartingXI && manualStartingXI.length > 0) {
+    if (manualStartingXI.length !== 7)
+      throw new Error(`Your starting XI has ${manualStartingXI.length} players — please select exactly 7, or click "Reset Starters" in the Match tab.`);
+    const missing = manualStartingXI.filter(s => !squad.find(p => p.id === s.id));
+    if (missing.length)
+      throw new Error('Starting XI contains players not in the matchday squad. Please update the Starting XI in the Match tab.');
+    // Positions are freely assignable — no position restriction check
+    onField = manualStartingXI.map(s => ({ ...squad.find(p => p.id === s.id), currentPosition: s.position }));
+  } else {
+    onField = pickStartingXI(squad);
+    if (!onField) throw new Error('Cannot form a valid starting XI. Check that you have at least one player who can play each of: GK, DEF (×2), MID (×3), ATT.');
+  }
+
+  onField.forEach(p => { lastEntry[p.id] = 0; });
+
+  // Build initial bench pool — explicit selection or all non-starters
+  const startingIds = new Set(onField.map(p => p.id));
+  let initialBench;
+  if (manualBenchXI && manualBenchXI.length > 0) {
+    initialBench = manualBenchXI
+      .map(b => { const p = squad.find(pl => pl.id === b.id); return (p && !startingIds.has(p.id)) ? (b.position ? { ...p, benchPosition: b.position } : { ...p }) : null; })
+      .filter(Boolean);
+  } else {
+    initialBench = squad.filter(p => !startingIds.has(p.id));
+  }
+  const eligiblePool = new Set([...startingIds, ...initialBench.map(p => p.id)]);
+  const usedOnField  = new Set(startingIds);
+
+  const plan = {
+    startingXI: onField.map(p => ({...p})),
+    periodRosters: [],
+    substitutions: [],
+    squad: [...squad],
+    settings: {...settings},
+    targetMins: target,
+    minsPlayed: {},
+  };
+
+  let prevTime = 0;
+  for (const breakTime of [...breakPoints, gameMins]) {
+    const segMins = breakTime - prevTime;
+    onField.forEach(p => { minsPlayed[p.id] = (minsPlayed[p.id] || 0) + segMins; });
+
+    plan.periodRosters.push({
+      startTime: prevTime,
+      endTime: breakTime,
+      players: onField.map(p => ({...p})),
+    });
+
+    if (breakTime < gameMins) {
+      let tempOn    = [...onField];
+      let tempBench = squad
+        .filter(p => eligiblePool.has(p.id) && !tempOn.find(o => o.id === p.id))
+        .map(p => !usedOnField.has(p.id) ? (initialBench.find(b => b.id === p.id) || p) : p);
+      const subsNow = [];
+
+      for (let i = 0; i < maxSubs; i++) {
+        const swap = findBestSwap(tempOn, tempBench, minsPlayed, lastEntry, breakTime, target, settings);
+        if (!swap) break;
+        subsNow.push(swap);
+        tempOn    = tempOn.filter(p => p.id !== swap.off.id);
+        tempOn.push({ ...swap.on, currentPosition: swap.position });
+        tempBench = tempBench.filter(p => p.id !== swap.on.id);
+        tempBench.push(swap.off);
+      }
+
+      if (subsNow.length > 0) {
+        plan.substitutions.push({ time: breakTime, isHalfTime: breakTime === halfTime, subs: subsNow });
+        onField = tempOn;
+        subsNow.forEach(s => { lastEntry[s.on.id] = breakTime; usedOnField.add(s.on.id); });
+      }
+    }
+    prevTime = breakTime;
+  }
+
+  plan.minsPlayed = { ...minsPlayed };
+  return plan;
+}
+
+// ============================================================
+// PLAN AND RENDERING
+// ============================================================
+function clearPlanState() {
+  state.currentPlan    = null;
+  state.currentPlans   = [];
+  state.currentPlanIdx = 1;
+  const po  = document.getElementById('plan-output');       if (po)  po.innerHTML  = '';
+  const mpo = document.getElementById('match-plan-output'); if (mpo) mpo.innerHTML = '';
+}
+function generateAndStorePlans(outputElId) {
+  const settings = getSettings();
+  if (settings.halfTime >= settings.gameMins) {
+    alert('Half-time must be before game end.'); return false;
+  }
+  const squad = getActiveSquad();
+  const qualLabels = { '0': 'Fairness only', '1': 'Moderate', '2': 'High', 'start_strong': 'Start Strong', 'end_strong': 'End Strong' };
+  const balancedStyle = qualLabels[settings.quality] || 'Moderate';
+  const variants = [
+    { label: '⚖️ Fairness',   quality: '0',           desc: 'Equal minutes for all — quality is ignored entirely' },
+    { label: '⚽ Balanced',    quality: settings.quality, desc: 'Your configured style: ' + balancedStyle },
+    { label: '🏆 Performance', quality: '2',           desc: 'Best players spend more time on pitch — fairness is secondary' },
+  ];
+  try {
+    const plans = variants.map(v => ({ label: v.label, desc: v.desc, plan: generatePlan(squad, { ...settings, quality: v.quality }) }));
+    const active = getActiveMatch();
+    if (active) {
+      active.plans            = plans;
+      active.selectedPlanIdx  = 1;
+      persist();
+    }
+    state.currentPlans   = plans;
+    state.currentPlanIdx = 1;
+    state.currentPlan    = plans[1].plan;
+    if (state.currentPlan) state.currentPlan._matchId = active ? active.id : null;
+    renderPlansToEl(outputElId);
+    return true;
+  } catch(err) {
+    document.getElementById(outputElId).innerHTML =
+      `<div class="alert alert-error"><strong>Error:</strong> ${esc(err.message)}</div>`;
+    return false;
+  }
+}
+
+function runGenerate() {
+  generateAndStorePlans('plan-output');
+}
+
+function runGenerateForMatch() {
+  saveMatchDetails();
+  const active = getActiveMatch();
+  if (!active) { alert('No match selected.'); return; }
+  if (generateAndStorePlans('match-plan-output')) {
+    renderMatchList(); // refresh list badges
+  }
+}
+
+function renderMatchPlanOutput() {
+  const el = document.getElementById('match-plan-output');
+  if (!el) return;
+  const active = getActiveMatch();
+  if (!active || !active.plans) { el.innerHTML = ''; return; }
+  state.currentPlans   = active.plans;
+  state.currentPlanIdx = active.selectedPlanIdx || 1;
+  state.currentPlan    = active.plans[state.currentPlanIdx].plan;
+  renderPlansToEl('match-plan-output');
+}
+
+function clearPlan() {
+  const active = getActiveMatch();
+  if (active) { active.plans = null; active.selectedPlanIdx = 1; persist(); }
+  clearPlanState();
+}
+
+function selectPlan(idx, elId) {
+  state.currentPlanIdx = idx;
+  state.currentPlan    = state.currentPlans[idx].plan;
+  const active = getActiveMatch();
+  if (active) { active.selectedPlanIdx = idx; persist(); }
+  const container = document.getElementById(elId);
+  if (!container) return;
+  container.querySelectorAll('.plan-tab-btn').forEach((btn, i) => btn.classList.toggle('active', i === idx));
+  container.querySelectorAll('.plan-tab-panel').forEach((panel, i) => { panel.style.display = i === idx ? '' : 'none'; });
+}
+
+function renderPlansToEl(elId) {
+  const plans     = state.currentPlans;
+  const activeIdx = state.currentPlanIdx;
+  const tabsHtml  = plans.map((p, i) =>
+    `<button class="plan-tab-btn${i === activeIdx ? ' active' : ''}" onclick="selectPlan(${i},'${elId}')">${p.label}</button>`
+  ).join('');
+  const panelsHtml = plans.map((p, i) =>
+    `<div class="plan-tab-panel" style="${i === activeIdx ? '' : 'display:none'}">
+      <p class="plan-tab-desc">${esc(p.desc)}</p>
+      ${renderPlanHtml(p.plan, i, elId)}
+    </div>`
+  ).join('');
+  const el = document.getElementById(elId);
+  if (el) el.innerHTML = `<div class="plan-tabs">${tabsHtml}</div>${panelsHtml}`;
+}
+
+// Legacy alias used by plan tab
+function renderPlans() { renderPlansToEl('plan-output'); }
+
+// ============================================================
+// SUBSTITUTION EDITOR
+// ============================================================
+let subEditState = null;
+
+function computeRosterBeforeTime(plan, targetTime) {
+  let roster = plan.startingXI.map(p => ({...p}));
+  const prior = [...plan.substitutions]
+    .filter(ev => ev.time < targetTime)
+    .sort((a, b) => a.time - b.time);
+  for (const ev of prior) {
+    for (const sub of ev.subs) {
+      roster = roster.filter(p => p.id !== sub.off.id);
+      roster.push({ ...sub.on, currentPosition: sub.position });
+    }
+  }
+  return roster;
+}
+
+// Returns { [playerId]: { isOnPitch, currentStintMins, totalMins } } at targetTime
+function computePlayerTimesAtMinute(plan, targetTime) {
+  const entryMap = {}; // playerId -> time they last entered pitch
+  const totalMap = {}; // playerId -> accumulated mins for completed stints
+
+  plan.startingXI.forEach(p => { entryMap[p.id] = 0; });
+
+  const sorted = [...plan.substitutions]
+    .filter(ev => ev.time < targetTime)
+    .sort((a, b) => a.time - b.time);
+
+  for (const ev of sorted) {
+    for (const sub of ev.subs) {
+      const offId = sub.off.id;
+      if (entryMap[offId] !== undefined) {
+        totalMap[offId] = (totalMap[offId] || 0) + (ev.time - entryMap[offId]);
+        delete entryMap[offId];
+      }
+      entryMap[sub.on.id] = ev.time;
+    }
+  }
+
+  const result = {};
+  plan.squad.forEach(p => {
+    const entry     = entryMap[p.id];
+    const completed = totalMap[p.id] || 0;
+    const isOnPitch = entry !== undefined;
+    const stintMins = isOnPitch ? targetTime - entry : 0;
+    result[p.id] = { isOnPitch, currentStintMins: stintMins, totalMins: completed + stintMins };
+  });
+  return result;
+}
+
+function rebuildPlanFromSubs(plan) {
+  const { startingXI, substitutions, squad, settings } = plan;
+  const { gameMins, halfTime } = settings;
+  const sorted = [...substitutions].sort((a, b) => a.time - b.time);
+  plan.substitutions = sorted;
+  sorted.forEach(ev => { ev.isHalfTime = (ev.time === halfTime); });
+  const breakSet = new Set([...sorted.map(s => s.time), halfTime, gameMins]);
+  const breaks   = [...breakSet].filter(t => t > 0 && t <= gameMins).sort((a,b) => a-b);
+  const mp = {};
+  squad.forEach(p => { mp[p.id] = 0; });
+  const periods = [];
+  let roster = startingXI.map(p => ({...p}));
+  let prev = 0;
+  for (const bt of breaks) {
+    const seg = bt - prev;
+    if (seg > 0) {
+      roster.forEach(p => { mp[p.id] = (mp[p.id] || 0) + seg; });
+      periods.push({ startTime: prev, endTime: bt, players: roster.map(p => ({...p})) });
+    }
+    if (bt < gameMins) {
+      const ev = sorted.find(s => s.time === bt);
+      if (ev) {
+        for (const sub of ev.subs) {
+          if (roster.find(p => p.id === sub.off.id)) {
+            roster = roster.filter(p => p.id !== sub.off.id);
+            roster.push({ ...sub.on, currentPosition: sub.position });
+          }
+        }
+      }
+    }
+    prev = bt;
+  }
+  plan.periodRosters = periods;
+  plan.minsPlayed    = mp;
+  return plan;
+}
+
+function openSubEditModal(planIdx, eventIdx, outputElId) {
+  const plan = state.currentPlans[planIdx].plan;
+  let timeVal, rows;
+  if (eventIdx >= 0) {
+    const ev = plan.substitutions[eventIdx];
+    timeVal = ev.time;
+    rows    = ev.subs.map(s => ({ offId: s.off.id, onId: s.on.id, position: s.position }));
+  } else {
+    timeVal = plan.settings.halfTime;
+    rows    = [{ offId: null, onId: null, position: null }];
+  }
+  subEditState = { planIdx, eventIdx, outputElId, timeVal, rows };
+  renderSubEditModal();
+  document.getElementById('sub-edit-overlay').style.display = 'flex';
+}
+
+function closeSubEditModal() {
+  document.getElementById('sub-edit-overlay').style.display = 'none';
+  subEditState = null;
+}
+
+function subEditChangeTime(val) {
+  const n = parseInt(val);
+  if (!isNaN(n)) subEditState.timeVal = n;
+  renderSubEditModal();
+}
+
+function subEditChangeField(rowIdx, field, val) {
+  const n = parseInt(val);
+  subEditState.rows[rowIdx][field] = field === 'position' ? (val || null) : (isNaN(n) ? null : n);
+}
+
+function subEditAddRow() {
+  subEditState.rows.push({ offId: null, onId: null, position: null });
+  renderSubEditModal();
+}
+
+function subEditRemoveRow(rowIdx) {
+  subEditState.rows.splice(rowIdx, 1);
+  if (subEditState.rows.length === 0) subEditState.rows = [{ offId: null, onId: null, position: null }];
+  renderSubEditModal();
+}
+
+function renderSubEditModal() {
+  const { planIdx, eventIdx, timeVal, rows } = subEditState;
+  const plan       = state.currentPlans[planIdx].plan;
+  const { gameMins } = plan.settings;
+  const isNew      = eventIdx === -1;
+
+  // Roster excluding the event being edited
+  const tempSubs = eventIdx >= 0 ? plan.substitutions.filter((_, i) => i !== eventIdx) : [...plan.substitutions];
+  const tempPlan = { ...plan, substitutions: tempSubs };
+  const roster   = computeRosterBeforeTime(tempPlan, timeVal);
+  const onField  = new Set(roster.map(p => p.id));
+  const offBench = plan.squad.filter(p => !onField.has(p.id));
+
+  // --- Snapshot: pitch + bench ---
+  const minsMap = computePlayerTimesAtMinute(tempPlan, timeVal);
+
+  const initials = name => {
+    const parts = name.trim().split(/\s+/);
+    return parts.length >= 2 ? (parts[0][0] + parts[parts.length-1][0]).toUpperCase() : name.substring(0,2).toUpperCase();
+  };
+
+  // Pitch view with per-player minute info
+  const pitchHtml = (() => {
+    const byPos = { ATT: [], MID: [], DEF: [], GK: [] };
+    roster.forEach(p => {
+      const pos = p.currentPosition || p.positions[0] || 'MID';
+      if (byPos[pos]) byPos[pos].push(p);
+    });
+    const rowHtml = pos => byPos[pos].map(p => {
+      const inf   = minsMap[p.id] || { currentStintMins: 0, totalMins: 0 };
+      const inits = initials(p.name);
+      const first = p.name.trim().split(/\s+/)[0];
+      const minsLine = inf.currentStintMins === inf.totalMins
+        ? `<div class="pit-mins">${inf.totalMins}'</div>`
+        : `<div class="pit-mins">${inf.currentStintMins}' on</div><div class="pit-mins">${inf.totalMins}' tot</div>`;
+      return `<div class="pit-player"><div class="pit-dot pit-dot-${pos}">${inits}</div><div class="pit-name">${esc(first)}</div>${minsLine}</div>`;
+    }).join('');
+    const svg = `<svg viewBox="0 0 200 340" fill="none" xmlns="http://www.w3.org/2000/svg" style="position:absolute;inset:0;width:100%;height:100%">
+      <rect x="5" y="5" width="190" height="330" stroke="rgba(255,255,255,0.4)" stroke-width="1.5"/>
+      <line x1="5" y1="170" x2="195" y2="170" stroke="rgba(255,255,255,0.4)" stroke-width="1.5"/>
+      <circle cx="100" cy="170" r="25" stroke="rgba(255,255,255,0.28)" stroke-width="1.5"/>
+      <circle cx="100" cy="170" r="2.5" fill="rgba(255,255,255,0.4)"/>
+      <rect x="52" y="5" width="96" height="55" stroke="rgba(255,255,255,0.28)" stroke-width="1.5"/>
+      <rect x="73" y="5" width="54" height="20" stroke="rgba(255,255,255,0.28)" stroke-width="1.5"/>
+      <rect x="52" y="280" width="96" height="55" stroke="rgba(255,255,255,0.28)" stroke-width="1.5"/>
+      <rect x="73" y="315" width="54" height="20" stroke="rgba(255,255,255,0.28)" stroke-width="1.5"/>
+      <circle cx="100" cy="35" r="2.5" fill="rgba(255,255,255,0.35)"/>
+      <circle cx="100" cy="305" r="2.5" fill="rgba(255,255,255,0.35)"/>
+    </svg>`;
+    return `<div class="pitch-field" style="width:100%;height:auto;aspect-ratio:200/340">${svg}<div class="pitch-players-overlay"><div class="pitch-row pitch-row-ATT">${rowHtml('ATT')}</div><div class="pitch-row pitch-row-MID">${rowHtml('MID')}</div><div class="pitch-row pitch-row-DEF">${rowHtml('DEF')}</div><div class="pitch-row pitch-row-GK">${rowHtml('GK')}</div></div></div>`;
+  })();
+
+  const benchHtml = offBench.length === 0
+    ? '<span class="text-muted text-xs">No players on bench</span>'
+    : offBench.map(p => {
+        const pos        = p.positions[0] || 'MID';
+        const dotColor   = { GK:'#f59e0b', DEF:'#3b82f6', MID:'#10b981', ATT:'#ef4444' }[pos] || '#94a3b8';
+        const inf        = minsMap[p.id] || { totalMins: 0 };
+        const minsLabel  = inf.totalMins > 0 ? `${inf.totalMins}' played` : 'not played';
+        return `<div class="bench-player">
+          <div class="bench-dot" style="background:${dotColor}20;border-color:${dotColor}">${initials(p.name)}</div>
+          <span>${esc(p.name)}</span>
+          <span class="text-muted text-xs" style="margin-left:auto;display:flex;align-items:center;gap:0.3rem">${p.positions.map(pp => `<span class="badge badge-${pp}" style="font-size:0.62rem;padding:0.08rem 0.28rem">${pp}</span>`).join(' ')}<span style="white-space:nowrap;opacity:0.8">${minsLabel}</span></span>
+        </div>`;
+      }).join('');
+
+  let html = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+      <h3 style="font-size:1rem;font-weight:700">${isNew ? '\u2795 Add Substitution' : '\u270f\ufe0f Edit Substitution'}</h3>
+      <button class="btn btn-ghost btn-sm" onclick="closeSubEditModal()">&times;</button>
+    </div>
+    <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:1rem">
+      <label style="font-size:0.82rem;font-weight:600">Minute</label>
+      <input type="number" class="form-input" style="width:5.5rem" min="1" max="${gameMins-1}" value="${timeVal}" oninput="subEditChangeTime(this.value)">
+      <span class="text-muted text-xs">1\u2013${gameMins-1}</span>
+    </div>
+
+    <div class="sub-edit-snapshot">
+      <div class="sub-edit-snapshot-pitch">
+        <div style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;color:var(--muted);margin-bottom:0.4rem">\u26bd On Pitch at ${timeVal}'</div>
+        <div class="pitch-wrap" style="width:130px">${pitchHtml}</div>
+      </div>
+      <div class="sub-edit-bench-list">
+        <div style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;color:var(--muted);margin-bottom:0.4rem">\ud83e\uddd1 Bench</div>
+        ${benchHtml}
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr 5rem 1.8rem;gap:0.4rem;margin-bottom:0.3rem;font-size:0.72rem;color:var(--muted);font-weight:600;padding:0 0.1rem">
+      <span>\u25bc Coming Off (on pitch)</span><span>\u25b2 Coming On (bench)</span><span>Position</span><span></span>
+    </div>`;
+
+  rows.forEach((row, i) => {
+    const offOpts = roster.map(p =>
+      `<option value="${p.id}" ${p.id === row.offId ? 'selected' : ''}>${esc(p.name)} (${p.currentPosition || p.positions[0]})</option>`
+    ).join('');
+    const onOpts = offBench.map(p =>
+      `<option value="${p.id}" ${p.id === row.onId ? 'selected' : ''}>${esc(p.name)} (${p.positions.join('/')})</option>`
+    ).join('');
+    const posOpts = POSITIONS.map(pos =>
+      `<option value="${pos}" ${pos === row.position ? 'selected' : ''}>${pos}</option>`
+    ).join('');
+    html += `<div class="sub-edit-row-grid">
+      <select onchange="subEditChangeField(${i},'offId',this.value)"><option value="">\u2014 Off \u2014</option>${offOpts}</select>
+      <select onchange="subEditChangeField(${i},'onId',this.value)"><option value="">\u2014 On \u2014</option>${onOpts}</select>
+      <select onchange="subEditChangeField(${i},'position',this.value)"><option value="">Pos</option>${posOpts}</select>
+      <button class="btn btn-danger btn-sm btn-icon" style="padding:0.15rem 0.4rem" onclick="subEditRemoveRow(${i})" ${rows.length <= 1 ? 'disabled' : ''}>&times;</button>
+    </div>`;
+  });
+
+  html += `
+    <button class="btn btn-ghost btn-sm" style="margin-top:0.25rem" onclick="subEditAddRow()">+ Add another sub</button>
+    <div id="sub-edit-error" class="alert alert-error" style="display:none;margin-top:0.75rem"></div>
+    <div class="flex gap-2" style="margin-top:1rem">
+      <button class="btn btn-primary" onclick="saveSubEdit()">💾 Save</button>
+      <button class="btn btn-ghost" onclick="closeSubEditModal()">Cancel</button>
+    </div>`;
+
+  document.getElementById('sub-edit-modal').innerHTML = html;
+}
+
+function saveSubEdit() {
+  const { planIdx, eventIdx, outputElId, timeVal, rows } = subEditState;
+  const plan  = state.currentPlans[planIdx].plan;
+  const { gameMins } = plan.settings;
+  const errorEl = document.getElementById('sub-edit-error');
+  const showErr = msg => { errorEl.textContent = msg; errorEl.style.display = ''; };
+
+  if (!timeVal || timeVal < 1 || timeVal >= gameMins) {
+    showErr(`Minute must be between 1 and ${gameMins - 1}.`); return;
+  }
+  const dupTime = plan.substitutions.some((ev, i) => ev.time === timeVal && i !== eventIdx);
+  if (dupTime) {
+    showErr(`There is already a substitution at minute ${timeVal}. Edit that one instead.`); return;
+  }
+
+  const tempSubs = eventIdx >= 0 ? plan.substitutions.filter((_, i) => i !== eventIdx) : [...plan.substitutions];
+  const tempPlan = { ...plan, substitutions: tempSubs };
+  const roster   = computeRosterBeforeTime(tempPlan, timeVal);
+  const onField  = new Set(roster.map(p => p.id));
+
+  const usedOff = new Set(), usedOn = new Set();
+  for (let i = 0; i < rows.length; i++) {
+    const { offId, onId, position } = rows[i];
+    if (!offId || !onId || !position) { showErr(`Row ${i+1}: fill in all three fields.`); return; }
+    if (offId === onId)              { showErr(`Row ${i+1}: same player selected for off and on.`); return; }
+    if (usedOff.has(offId))          { showErr(`Row ${i+1}: duplicate player coming off.`); return; }
+    if (usedOn.has(onId))            { showErr(`Row ${i+1}: duplicate player coming on.`); return; }
+    if (!onField.has(offId)) {
+      const p = plan.squad.find(pl => pl.id === offId);
+      showErr(`Row ${i+1}: ${p ? p.name : 'Player'} is not on the pitch at minute ${timeVal}.`); return;
+    }
+    if (onField.has(onId)) {
+      const p = plan.squad.find(pl => pl.id === onId);
+      showErr(`Row ${i+1}: ${p ? p.name : 'Player'} is already on the pitch at minute ${timeVal}.`); return;
+    }
+    usedOff.add(offId); usedOn.add(onId);
+  }
+
+  const newEvent = {
+    time:       timeVal,
+    isHalfTime: timeVal === plan.settings.halfTime,
+    subs:       rows.map(r => ({
+      off:      plan.squad.find(p => p.id === r.offId),
+      on:       plan.squad.find(p => p.id === r.onId),
+      position: r.position,
+    })),
+  };
+
+  if (eventIdx >= 0) plan.substitutions[eventIdx] = newEvent;
+  else               plan.substitutions.push(newEvent);
+
+  rebuildPlanFromSubs(plan);
+  if (state.currentPlanIdx === planIdx) state.currentPlan = plan;
+  const active = getActiveMatch();
+  if (active && active.plans) { active.plans[planIdx].plan = plan; persist(); }
+
+  closeSubEditModal();
+  renderPlansToEl(outputElId);
+}
+
+function deleteSubEvent(planIdx, eventIdx, outputElId) {
+  if (!confirm('Remove this substitution event?')) return;
+  const plan = state.currentPlans[planIdx].plan;
+  plan.substitutions.splice(eventIdx, 1);
+  rebuildPlanFromSubs(plan);
+  if (state.currentPlanIdx === planIdx) state.currentPlan = plan;
+  const active = getActiveMatch();
+  if (active && active.plans) { active.plans[planIdx].plan = plan; persist(); }
+  renderPlansToEl(outputElId);
+}
+
+function renderPlanHtml(plan, planIdx, outputElId) {
+  const { startingXI, substitutions, minsPlayed, targetMins, squad, settings } = plan;
+  const { gameMins, halfTime } = settings;
+  const _pi  = planIdx    ?? -1;
+  const _eid = outputElId || 'plan-output';
+
+  let html = '';
+
+  // --- Starting XI ---
+  const benchPlayers = squad.filter(p => !startingXI.find(o => o.id === p.id));
+  html += `
+    <div class="card">
+      <h2 class="card-title" style="margin-bottom:0.75rem">🟢 Starting Line-up</h2>
+      <div style="display:flex;gap:1.25rem;align-items:flex-start;flex-wrap:wrap">
+        <div class="pitch-wrap" style="flex-shrink:0;width:200px">
+          ${buildPitchHtml(startingXI)}
+        </div>
+        <div style="flex:1;min-width:160px;display:flex;flex-direction:column;gap:0.35rem;padding-top:0.15rem">
+          ${startingXI.map(p => `
+            <div style="display:flex;align-items:center;gap:0.45rem;font-size:0.875rem">
+              <span class="badge badge-${p.currentPosition}" style="width:2.8rem;text-align:center;flex-shrink:0">${p.currentPosition}</span>
+              <span>${esc(p.name)}</span>
+            </div>`).join('')}
+          ${benchPlayers.length > 0 ? `
+            <hr style="border:none;border-top:1px solid var(--border);margin:0.5rem 0">
+            <div style="font-size:0.8rem;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.25rem">🪑 Bench</div>
+            ${benchPlayers.map(p => `
+              <div style="display:flex;align-items:center;gap:0.45rem;font-size:0.875rem;color:var(--muted)">
+                ${p.positions.map(pos => `<span class="badge badge-${pos}" style="font-size:0.65rem;padding:0.1rem 0.3rem">${pos}</span>`).join('')}
+                <span>${esc(p.name)}</span>
+              </div>`).join('')}
+          ` : ''}
+        </div>
+      </div>
+    </div>`;
+
+  // --- Substitutions ---
+  html += `<div class="card"><h2 class="card-title">🔄 Substitution Schedule</h2>`;
+  if (substitutions.length === 0) {
+    html += `<div class="alert alert-info">No substitutions generated — all players have very similar target minutes, or no valid position-compatible swaps exist. Try adding players with flexible positions, or increase the quality weight.</div>`;
+  } else {
+    substitutions.forEach((ev, evIdx) => {
+      html += `
+        <div class="sub-event">
+          <div class="sub-event-header">
+            <span class="sub-time-pill ${ev.isHalfTime ? 'halftime' : ''}">${ev.time}'${ev.isHalfTime ? ' — Half Time' : ''}</span>
+            <span class="text-muted text-xs">${ev.subs.length} sub${ev.subs.length > 1 ? 's' : ''}</span>
+            ${_pi >= 0 ? `<div style="margin-left:auto;display:flex;gap:0.25rem">
+              <button class="btn btn-ghost btn-sm btn-icon" title="Edit" onclick="openSubEditModal(${_pi},${evIdx},'${_eid}')">✏️</button>
+              <button class="btn btn-danger btn-sm btn-icon" title="Delete" onclick="deleteSubEvent(${_pi},${evIdx},'${_eid}')">✕</button>
+            </div>` : ''}
+          </div>
+          <div class="sub-rows">
+            ${ev.subs.map(s => `
+              <div class="sub-row">
+                <span class="sub-off">▼ ${esc(s.off.name)}</span>
+                <span class="text-muted">→</span>
+                <span class="sub-on">▲ ${esc(s.on.name)}</span>
+                <span style="margin-left:auto"><span class="badge badge-${s.position}">${s.position}</span></span>
+              </div>
+            `).join('')}
+          </div>
+        </div>`;
+    });
+  }
+  if (_pi >= 0) {
+    html += `<div style="margin-top:0.75rem"><button class="btn btn-ghost btn-sm" onclick="openSubEditModal(${_pi},-1,'${_eid}')">+ Add Substitution</button></div>`;
+  }
+  html += `</div>`;
+
+  // --- Playing Time Summary ---
+  html += `
+    <div class="card">
+      <h2 class="card-title">⏱️ Playing Time Summary</h2>
+      <p class="text-muted text-sm" style="margin-bottom:0.75rem">
+        Target: ~<strong style="color:var(--text)">${targetMins.toFixed(0)} min</strong> per player &nbsp;|&nbsp;
+        Total field-minutes: ${gameMins * 7} &nbsp;|&nbsp;
+        Squad: ${squad.length} players
+      </p>
+      <div class="time-bars">`;
+
+  const sorted = [...squad].sort((a,b) => (minsPlayed[b.id]||0) - (minsPlayed[a.id]||0));
+  sorted.forEach(p => {
+    const mins   = minsPlayed[p.id] || 0;
+    const pct    = Math.min(100, (mins / gameMins) * 100);
+    const tpct   = Math.min(100, (targetMins / gameMins) * 100);
+    const diff   = mins - targetMins;
+    const diffStr = diff >= 0 ? `+${diff.toFixed(0)}` : `${diff.toFixed(0)}`;
+    const barCol = Math.abs(diff) <= 5 ? '#10b981' : diff > 0 ? '#f59e0b' : '#6366f1';
+    const diffCol = Math.abs(diff) <= 5 ? '#10b981' : diff > 0 ? '#f59e0b' : '#a78bfa';
+    const isStarter = startingXI.find(o => o.id === p.id);
+    html += `
+      <div class="time-bar-row">
+        <div class="time-bar-name" title="${esc(p.name)}">${esc(p.name)}</div>
+        <div class="time-bar-track">
+          <div class="time-bar-fill" style="width:${pct}%;background:${barCol}"></div>
+          <div class="time-bar-target-line" style="left:${tpct}%"></div>
+        </div>
+        <div class="time-bar-label">${mins.toFixed(0)}' <span style="color:${diffCol}">(${diffStr})</span></div>
+        <div class="time-bar-tag">${isStarter ? '▶ start' : '⇄ sub'}</div>
+      </div>`;
+  });
+
+  html += `</div></div>`;
+
+  // --- Warnings ---
+  const warns = [];
+  squad.forEach(p => {
+    const m = minsPlayed[p.id] || 0;
+    if (m === 0) warns.push(`<strong>${esc(p.name)}</strong> gets 0 minutes — no compatible position swap could be found. They may need to learn another position.`);
+    else if (m < 8) warns.push(`<strong>${esc(p.name)}</strong> only gets ${m} minutes — consider a longer sub interval or more flexible positions.`);
+  });
+  if (warns.length) {
+    html += `<div class="alert alert-warning">${warns.map(w => `• ${w}`).join('<br>')}</div>`;
+  }
+
+  // --- Actions ---
+  html += `
+    <div class="flex gap-2 flex-wrap">
+      <button class="btn btn-ghost" onclick="savePlanToSeason()">💾 Save to Season</button>
+      <button class="btn btn-ghost" onclick="
+        document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+        document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+        document.querySelector('[data-tab=timeline]').classList.add('active');
+        document.getElementById('tab-timeline').classList.add('active');
+        renderTimeline();
+      ">📊 View Timeline</button>
+      <button class="btn btn-ghost" onclick="window.print()">🖨 Print</button>
+    </div>`;
+
+  return html;
+}
+
+// ============================================================
+// TIMELINE (SVG)
+// ============================================================
+function renderTimeline() {
+  const plan = state.currentPlan;
+  if (!plan) { return; }
+  const { squad, minsPlayed, startingXI, substitutions, periodRosters, settings, targetMins } = plan;
+  const { gameMins, halfTime } = settings;
+
+  // Build per-player continuous intervals from periodRosters
+  const intervals = {};
+  squad.forEach(p => intervals[p.id] = []);
+  periodRosters.forEach(period => {
+    period.players.forEach(pl => {
+      const arr = intervals[pl.id];
+      const last = arr[arr.length - 1];
+      if (last && last.end === period.startTime && last.pos === pl.currentPosition) {
+        last.end = period.endTime;
+      } else {
+        arr.push({ start: period.startTime, end: period.endTime, pos: pl.currentPosition });
+      }
+    });
+  });
+
+  const PAD_L = 115, PAD_R = 55, ROW_H = 34, HEAD_H = 28, FOOT_H = 20;
+  const CHART_W = Math.max(600, 800);
+  const W = PAD_L + CHART_W + PAD_R;
+  const H = HEAD_H + squad.length * ROW_H + FOOT_H + 10;
+
+  const posOrder = {GK:0, DEF:1, MID:2, ATT:3};
+  const sortedSquad = [...squad].sort((a,b) => {
+    const as = startingXI.find(o=>o.id===a.id), bs = startingXI.find(o=>o.id===b.id);
+    if (as && !bs) return -1; if (!as && bs) return 1;
+    if (as && bs) return posOrder[as.currentPosition] - posOrder[bs.currentPosition];
+    return a.name.localeCompare(b.name);
+  });
+
+  const px = t => PAD_L + (t / gameMins) * CHART_W;
+  const py = i => HEAD_H + i * ROW_H;
+
+  const s = [];
+  s.push(`<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="font-family:system-ui,sans-serif;min-width:${W}px">`);
+  s.push(`<rect width="${W}" height="${H}" fill="#1e293b" rx="12"/>`);
+
+  // Grid lines
+  for (let t = 0; t <= gameMins; t += 5) {
+    const x = px(t);
+    const major = t % 10 === 0 || t === halfTime;
+    s.push(`<line x1="${x}" y1="${HEAD_H}" x2="${x}" y2="${H - FOOT_H}" stroke="${t===halfTime?'#f59e0b55':'#33415540'}" stroke-width="${t===halfTime?1.5:0.5}"/>`);
+    if (major) {
+      s.push(`<text x="${x}" y="${HEAD_H-6}" text-anchor="middle" fill="#64748b" font-size="11">${t}'</text>`);
+    }
+  }
+
+  // Half-time label
+  s.push(`<text x="${px(halfTime)}" y="${HEAD_H-6}" text-anchor="middle" fill="#f59e0b" font-size="10" font-weight="bold">HT</text>`);
+
+  // Player rows
+  sortedSquad.forEach((player, i) => {
+    const y0 = py(i);
+    s.push(`<rect x="0" y="${y0}" width="${W}" height="${ROW_H}" fill="${i%2===0?'#1e293b':'#1a2840'}"/>`);
+    s.push(`<text x="${PAD_L-8}" y="${y0+ROW_H/2+4}" text-anchor="end" fill="#e2e8f0" font-size="12.5">${esc(player.name)}</text>`);
+
+    intervals[player.id].forEach(iv => {
+      const x0 = px(iv.start), x1 = px(iv.end), w = x1 - x0;
+      const col = POS_COLOR[iv.pos] || '#6366f1';
+      const rh = ROW_H - 10, ry = y0 + 5;
+      s.push(`<rect x="${x0}" y="${ry}" width="${w}" height="${rh}" rx="3" fill="${col}" opacity="0.85"/>`);
+      if (w > 22) s.push(`<text x="${x0+w/2}" y="${ry+rh/2+4}" text-anchor="middle" fill="white" font-size="10" font-weight="bold">${iv.pos}</text>`);
+    });
+
+    const mins = minsPlayed[player.id] || 0;
+    const diff = mins - targetMins;
+    const diffCol = Math.abs(diff)<=5?'#10b981':diff>0?'#f59e0b':'#a78bfa';
+    s.push(`<text x="${W-PAD_R+5}" y="${y0+ROW_H/2+4}" fill="#94a3b8" font-size="11">${mins}'</text>`);
+    s.push(`<text x="${W-PAD_R+31}" y="${y0+ROW_H/2+4}" fill="${diffCol}" font-size="10">${diff>=0?'+':''}${diff.toFixed(0)}</text>`);
+  });
+
+  // Sub timing markers
+  substitutions.forEach(ev => {
+    const x = px(ev.time);
+    s.push(`<line x1="${x}" y1="${HEAD_H}" x2="${x}" y2="${H - FOOT_H}" stroke="#6366f180" stroke-width="1.5" stroke-dasharray="4,3"/>`);
+  });
+
+  // Legend
+  const LEG_Y = H - FOOT_H + 15;
+  let legX = PAD_L;
+  Object.entries(POS_COLOR).forEach(([pos, col]) => {
+    s.push(`<rect x="${legX}" y="${LEG_Y-10}" width="12" height="12" rx="2" fill="${col}"/>`);
+    s.push(`<text x="${legX+16}" y="${LEG_Y}" fill="#94a3b8" font-size="11">${pos}</text>`);
+    legX += 55;
+  });
+  s.push(`<rect x="${legX}" y="${LEG_Y-10}" width="12" height="4" rx="1" fill="#6366f180"/>`);
+  s.push(`<text x="${legX+16}" y="${LEG_Y}" fill="#94a3b8" font-size="11">sub</text>`);
+  s.push(`</svg>`);
+
+  document.getElementById('timeline-svg-container').innerHTML = s.join('');
+}
+
+// ============================================================
+// SEASON TRACKING
+// ============================================================
+function loadSeasonStats() {
+  try { return JSON.parse(localStorage.getItem('ssp-season') || '{}'); } catch { return {}; }
+}
+
+function savePlanToSeason() {
+  if (!state.currentPlan) { alert('Generate a plan first.'); return; }
+  const { minsPlayed, squad } = state.currentPlan;
+  const stats = loadSeasonStats();
+  squad.forEach(p => {
+    if (!stats[p.id]) stats[p.id] = { name: p.name, totalMins: 0, games: 0 };
+    stats[p.id].totalMins += minsPlayed[p.id] || 0;
+    stats[p.id].games     += 1;
+    stats[p.id].name       = p.name;
+  });
+  localStorage.setItem('ssp-season', JSON.stringify(stats));
+  alert('Saved! Switch to the Season tab to view cumulative stats.');
+  renderSeasonStats();
+}
+
+function renderSeasonStats() {
+  const stats = loadSeasonStats();
+  const entries = Object.values(stats);
+  const out = document.getElementById('season-content');
+  if (!out) return;
+  if (!entries.length) {
+    out.innerHTML = '<div class="alert alert-info">No season data saved yet. Generate a plan and click "Save to Season".</div>';
+    return;
+  }
+  entries.sort((a,b) => b.totalMins - a.totalMins);
+  const maxMins = Math.max(...entries.map(e => e.totalMins), 1);
+  let html = '<div class="time-bars">';
+  entries.forEach(e => {
+    const avg = e.games ? (e.totalMins / e.games).toFixed(0) : 0;
+    const pct = (e.totalMins / maxMins) * 100;
+    html += `
+      <div class="time-bar-row">
+        <div class="time-bar-name">${esc(e.name)}</div>
+        <div class="time-bar-track">
+          <div class="time-bar-fill" style="width:${pct}%;background:#6366f1"></div>
+        </div>
+        <div class="time-bar-label">${e.totalMins}' total &nbsp;<span class="text-muted">(${e.games} games, avg ${avg}')</span></div>
+      </div>`;
+  });
+  html += '</div>';
+  out.innerHTML = html;
+}
+
+function resetSeason() {
+  if (!confirm('Reset all season statistics? This cannot be undone.')) return;
+  localStorage.removeItem('ssp-season');
+  renderSeasonStats();
+}
+
+// ============================================================
+// UTILITIES
+// ============================================================
+function esc(str) {
+  return String(str ?? '')
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+// ============================================================
+// INIT
+// ============================================================
+initState();
+renderSquadSelectorBar();
+renderSquad();
+renderSeasonStats();
+renderPlanMatchBanner();
+</script>
+
+<!-- SUB EDIT MODAL -->
+<div id="sub-edit-overlay" class="sub-edit-overlay" style="display:none" onclick="if(event.target===this)closeSubEditModal()">
+  <div class="sub-edit-modal" id="sub-edit-modal"></div>
+</div>
+</body>
+</html>
