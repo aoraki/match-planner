@@ -252,13 +252,65 @@
     .plan-tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
     .plan-tab-desc { font-size: 0.8rem; color: var(--muted); font-style: italic; margin-bottom: 1rem; padding: 0.5rem 0.75rem; background: var(--card2); border-radius: 0.4rem; border-left: 3px solid var(--accent); }
   </style>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 
+<!-- ========== AUTH OVERLAY ========== -->
+<div id="auth-overlay" style="display:flex;position:fixed;inset:0;background:var(--bg);z-index:9999;align-items:center;justify-content:center;padding:1rem">
+  <div style="background:var(--card);border:1px solid var(--border);border-radius:1rem;padding:2rem;width:100%;max-width:400px">
+
+    <!-- SIGN-IN PANEL -->
+    <div id="auth-panel-signin">
+      <div style="text-align:center;margin-bottom:1.5rem">
+        <div style="font-size:2.5rem;margin-bottom:0.5rem">⚽</div>
+        <h1 style="font-size:1.4rem;font-weight:700">Match Planner</h1>
+        <p style="color:var(--muted);font-size:0.85rem;margin-top:0.25rem">Coach sign-in — access is by invitation only</p>
+      </div>
+      <div class="form-group" style="margin-bottom:0.75rem">
+        <label>Email</label>
+        <input class="form-input" type="email" id="auth-email" placeholder="you@example.com" autocomplete="email">
+      </div>
+      <div class="form-group" style="margin-bottom:0.25rem">
+        <label>Password</label>
+        <input class="form-input" type="password" id="auth-password" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')handleSignIn()">
+      </div>
+      <div style="text-align:right;margin-bottom:1rem">
+        <button onclick="showForgotPanel()" style="background:none;border:none;color:var(--muted);font-size:0.8rem;cursor:pointer;text-decoration:underline">Forgot password?</button>
+      </div>
+      <button id="auth-signin-btn" class="btn btn-primary" style="width:100%;justify-content:center" onclick="handleSignIn()">Sign In</button>
+      <div id="auth-error" style="display:none;margin-top:0.75rem;padding:0.5rem 0.75rem;border-radius:0.4rem;font-size:0.85rem"></div>
+    </div>
+
+    <!-- FORGOT PASSWORD PANEL -->
+    <div id="auth-panel-forgot" style="display:none">
+      <div style="text-align:center;margin-bottom:1.5rem">
+        <div style="font-size:2rem;margin-bottom:0.5rem">🔑</div>
+        <h2 style="font-size:1.2rem;font-weight:700">Reset Password</h2>
+        <p style="color:var(--muted);font-size:0.85rem;margin-top:0.25rem">Enter your email and we'll send a reset link</p>
+      </div>
+      <div class="form-group" style="margin-bottom:1rem">
+        <label>Email</label>
+        <input class="form-input" type="email" id="auth-reset-email" placeholder="you@example.com" autocomplete="email" onkeydown="if(event.key==='Enter')handleForgotPassword()">
+      </div>
+      <button id="auth-reset-btn" class="btn btn-primary" style="width:100%;justify-content:center" onclick="handleForgotPassword()">Send Reset Link</button>
+      <div style="text-align:center;margin-top:0.75rem">
+        <button onclick="showSignInPanel()" style="background:none;border:none;color:var(--muted);font-size:0.8rem;cursor:pointer;text-decoration:underline">Back to sign in</button>
+      </div>
+      <div id="auth-reset-msg" style="display:none;margin-top:0.75rem;padding:0.5rem 0.75rem;border-radius:0.4rem;font-size:0.85rem"></div>
+    </div>
+
+  </div>
+</div>
+
 <header>
   <div class="logo">⚽</div>
-  <div>
+  <div style="flex:1">
     <h1>Match Planner</h1>
+  </div>
+  <div style="display:flex;align-items:center;gap:0.75rem">
+    <span id="user-email" style="color:var(--muted);font-size:0.8rem"></span>
+    <button class="btn btn-ghost btn-sm" onclick="handleSignOut()">Sign Out</button>
   </div>
 </header>
 
@@ -634,6 +686,48 @@
 
 <script>
 // ============================================================
+// SUPABASE CONFIGURATION
+// ↓ Replace these two values with your Supabase project credentials ↓
+// ============================================================
+//
+// Required SQL (run once in Supabase SQL Editor):
+//
+//   -- Single shared row for the whole team (no per-user isolation)
+//   create table app_data (
+//     id            text primary key default 'shared',
+//     squads        jsonb default '[]',
+//     matches       jsonb default '[]',
+//     season        jsonb default '{}',
+//     next_squad_id int  default 1,
+//     next_id       int  default 1,
+//     next_match_id int  default 1,
+//     updated_at    timestamptz default now()
+//   );
+//
+//   -- Any authenticated coach can read and write
+//   alter table app_data enable row level security;
+//   create policy "Coaches read shared data" on app_data
+//     for select using (auth.role() = 'authenticated');
+//   create policy "Coaches write shared data" on app_data
+//     for insert with check (auth.role() = 'authenticated');
+//   create policy "Coaches update shared data" on app_data
+//     for update using (auth.role() = 'authenticated');
+//
+//   -- Enable real-time for live sync between coaches
+//   alter publication supabase_realtime add table app_data;
+//
+//   -- Seed the single shared row:
+//   insert into app_data (id) values ('shared') on conflict do nothing;
+//
+//   NOTE: The first coach to sign in will populate the shared row with
+//   example data if it is empty. All subsequent coaches see the same data.
+//
+const SUPABASE_URL      = 'https://pjtjgusqvvpdyaqvwgvw.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_zgb9E9mrwlaXfx9JxxcLhA_MqM0QNmB';
+const _supa = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+let _currentUser = null;
+
+// ============================================================
 // STATE
 // ============================================================
 const POSITIONS = ['GK','DEF','MID','ATT'];
@@ -678,64 +772,54 @@ function blankSquad(id, name) {
   return { id, name: name || `Squad ${id}`, players: [] };
 }
 
-function initState() {
+const SHARED_ID = 'shared';
+
+async function initState() {
   try {
-    const sqs   = localStorage.getItem('ssp-squads');
-    const nsqid = localStorage.getItem('ssp-nextsquadid');
-    const nid   = localStorage.getItem('ssp-nextid');
-    const ms    = localStorage.getItem('ssp-matches');
-    const nmid  = localStorage.getItem('ssp-nextmatchid');
-
-    if (sqs) {
-      state.squads      = JSON.parse(sqs);
-      state.nextSquadId = parseInt(nsqid) || state.squads.length + 1;
-      state.nextId      = parseInt(nid)   || 1;
-    } else {
-      // Migrate old single-squad data
-      const oldSq  = localStorage.getItem('ssp-squad');
-      const players = oldSq ? JSON.parse(oldSq) : DEFAULT_SQUAD.map(p => ({...p}));
-      state.squads      = [{ id: 1, name: 'Main Squad', players }];
-      state.nextSquadId = 2;
-      state.nextId      = parseInt(nid) || 12;
-    }
-    state.activeSquadId = state.squads.length ? state.squads[0].id : null;
-
-    if (ms) {
-      state.matches     = JSON.parse(ms);
-      state.nextMatchId = parseInt(nmid) || state.matches.length + 1;
-      // Migrate: assign first squad to matches that have none
+    const { data } = await _supa
+      .from('app_data')
+      .select('*')
+      .eq('id', SHARED_ID)
+      .maybeSingle();
+    if (data && (data.squads?.length || data.matches?.length)) {
+      state.squads      = data.squads       || [];
+      state.nextSquadId = data.next_squad_id || (state.squads.length ? Math.max(...state.squads.map(s=>s.id)) + 1 : 1);
+      state.nextId      = data.next_id       || 1;
+      state.matches     = data.matches       || [];
+      state.nextMatchId = data.next_match_id || (state.matches.length ? Math.max(...state.matches.map(m=>m.id)) + 1 : 1);
+      state.activeSquadId = state.squads.length ? state.squads[0].id : null;
+      // Ensure all matches have a squad assigned
       state.matches.forEach(m => {
         if (!m.squadId && state.squads.length) m.squadId = state.squads[0].id;
       });
     } else {
-      // Migrate old single-match data if present
-      const oldMt = localStorage.getItem('ssp-match');
-      if (oldMt) {
-        const old = JSON.parse(oldMt);
-        const m   = blankMatch(1);
-        Object.assign(m, { opponent: old.opponent||'', date: old.date||'', venue: old.venue||'home',
-          notes: old.notes||'', squadId: state.squads[0]?.id || null,
-          squadIds: old.squadIds||[], startingXI: old.startingXI||[], benchXI: old.benchXI||[] });
-        state.matches     = [m];
-        state.nextMatchId = 2;
-      }
+      // Shared row is empty — first coach in seeds the example data
+      state.squads        = [{ id: 1, name: 'Main Squad', players: DEFAULT_SQUAD.map(p => ({...p})) }];
+      state.nextSquadId   = 2;
+      state.nextId        = 12;
+      state.activeSquadId = 1;
+      await persist();
     }
   } catch(e) {
-    state.squads        = [{ id: 1, name: 'Main Squad', players: DEFAULT_SQUAD.map(p => ({...p})) }];
-    state.nextSquadId   = 2;
-    state.nextId        = 12;
-    state.activeSquadId = 1;
+    console.error('Failed to load data from Supabase:', e);
   }
 }
 
-function persist() {
+async function persist() {
+  if (!_currentUser) return;
   try {
-    localStorage.setItem('ssp-squads',       JSON.stringify(state.squads));
-    localStorage.setItem('ssp-nextsquadid',  String(state.nextSquadId));
-    localStorage.setItem('ssp-nextid',       String(state.nextId));
-    localStorage.setItem('ssp-matches',      JSON.stringify(state.matches));
-    localStorage.setItem('ssp-nextmatchid',  String(state.nextMatchId));
-  } catch(e) {}
+    await _supa.from('app_data').upsert({
+      id:            SHARED_ID,
+      squads:        state.squads,
+      matches:       state.matches,
+      next_squad_id: state.nextSquadId,
+      next_id:       state.nextId,
+      next_match_id: state.nextMatchId,
+      updated_at:    new Date().toISOString(),
+    }, { onConflict: 'id' });
+  } catch(e) {
+    console.error('Failed to save:', e);
+  }
 }
 
 // ============================================================
@@ -2424,32 +2508,48 @@ function renderTimeline() {
 // ============================================================
 // SEASON TRACKING
 // ============================================================
-function loadSeasonStats() {
-  try { return JSON.parse(localStorage.getItem('ssp-season') || '{}'); } catch { return {}; }
+async function loadSeasonStats() {
+  try {
+    const { data } = await _supa
+      .from('app_data')
+      .select('season')
+      .eq('id', SHARED_ID)
+      .maybeSingle();
+    return (data && data.season) ? data.season : {};
+  } catch { return {}; }
 }
 
-function savePlanToSeason() {
+async function savePlanToSeason() {
   if (!state.currentPlan) { alert('Generate a plan first.'); return; }
   const { minsPlayed, squad } = state.currentPlan;
-  const stats = loadSeasonStats();
+  const stats = await loadSeasonStats();
   squad.forEach(p => {
     if (!stats[p.id]) stats[p.id] = { name: p.name, totalMins: 0, games: 0 };
     stats[p.id].totalMins += minsPlayed[p.id] || 0;
     stats[p.id].games     += 1;
     stats[p.id].name       = p.name;
   });
-  localStorage.setItem('ssp-season', JSON.stringify(stats));
-  alert('Saved! Switch to the Season tab to view cumulative stats.');
-  renderSeasonStats();
+  try {
+    await _supa.from('app_data').upsert({
+      id:         SHARED_ID,
+      season:     stats,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'id' });
+    alert('Saved! Switch to the Season tab to view cumulative stats.');
+    await renderSeasonStats();
+  } catch(e) {
+    alert('Failed to save season data.');
+  }
 }
 
-function renderSeasonStats() {
-  const stats = loadSeasonStats();
-  const entries = Object.values(stats);
+async function renderSeasonStats() {
   const out = document.getElementById('season-content');
   if (!out) return;
+  out.innerHTML = '<div class="text-muted text-sm" style="padding:0.5rem">Loading…</div>';
+  const stats   = await loadSeasonStats();
+  const entries = Object.values(stats);
   if (!entries.length) {
-    out.innerHTML = '<div class="alert alert-info">No season data saved yet. Generate a plan and click "Save to Season".</div>';
+    out.innerHTML = '<div class="alert alert-info">No season data saved yet. Generate a plan and click “Save to Season”.</div>';
     return;
   }
   entries.sort((a,b) => b.totalMins - a.totalMins);
@@ -2471,10 +2571,18 @@ function renderSeasonStats() {
   out.innerHTML = html;
 }
 
-function resetSeason() {
+async function resetSeason() {
   if (!confirm('Reset all season statistics? This cannot be undone.')) return;
-  localStorage.removeItem('ssp-season');
-  renderSeasonStats();
+  try {
+    await _supa.from('app_data').upsert({
+      id:         SHARED_ID,
+      season:     {},
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'id' });
+    await renderSeasonStats();
+  } catch(e) {
+    alert('Failed to reset season data.');
+  }
 }
 
 // ============================================================
@@ -2487,13 +2595,238 @@ function esc(str) {
 }
 
 // ============================================================
-// INIT
+// AUTHENTICATION
 // ============================================================
-initState();
-renderSquadSelectorBar();
-renderSquad();
-renderSeasonStats();
-renderPlanMatchBanner();
+function showSignInPanel() {
+  document.getElementById('auth-panel-signin').style.display = '';
+  document.getElementById('auth-panel-forgot').style.display = 'none';
+  const errEl = document.getElementById('auth-error');
+  if (errEl) { errEl.textContent = ''; errEl.style.display = 'none'; }
+}
+
+function showForgotPanel() {
+  document.getElementById('auth-panel-signin').style.display = 'none';
+  document.getElementById('auth-panel-forgot').style.display = '';
+  const msgEl = document.getElementById('auth-reset-msg');
+  if (msgEl) { msgEl.textContent = ''; msgEl.style.display = 'none'; }
+  // Pre-fill email if already typed
+  const email = document.getElementById('auth-email').value.trim();
+  if (email) document.getElementById('auth-reset-email').value = email;
+}
+
+function showAuthError(msg, isSuccess) {
+  const errEl = document.getElementById('auth-error');
+  if (!errEl) return;
+  errEl.textContent      = msg;
+  errEl.style.display    = '';
+  errEl.style.color      = isSuccess ? '#6ee7b7' : '#fca5a5';
+  errEl.style.background = isSuccess ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)';
+}
+
+async function handleSignIn() {
+  const email    = document.getElementById('auth-email').value.trim();
+  const password = document.getElementById('auth-password').value;
+  const btn      = document.getElementById('auth-signin-btn');
+  if (!email || !password) { showAuthError('Please enter your email and password.'); return; }
+  btn.disabled = true; btn.textContent = 'Signing in…';
+  const { error } = await _supa.auth.signInWithPassword({ email, password });
+  btn.disabled = false; btn.textContent = 'Sign In';
+  if (error) showAuthError(error.message);
+}
+
+async function handleForgotPassword() {
+  const email = document.getElementById('auth-reset-email').value.trim();
+  const btn   = document.getElementById('auth-reset-btn');
+  const msgEl = document.getElementById('auth-reset-msg');
+  if (!email) {
+    msgEl.textContent = 'Please enter your email address.';
+    msgEl.style.display = ''; msgEl.style.color = '#fca5a5'; msgEl.style.background = 'rgba(239,68,68,0.1)';
+    return;
+  }
+  btn.disabled = true; btn.textContent = 'Sending…';
+  // redirectTo must match a URL in your Supabase "Redirect URLs" allow-list
+  const redirectTo = window.location.origin + window.location.pathname;
+  const { error } = await _supa.auth.resetPasswordForEmail(email, { redirectTo });
+  btn.disabled = false; btn.textContent = 'Send Reset Link';
+  msgEl.style.display = '';
+  if (error) {
+    msgEl.textContent = error.message;
+    msgEl.style.color = '#fca5a5'; msgEl.style.background = 'rgba(239,68,68,0.1)';
+  } else {
+    msgEl.textContent = 'Reset link sent! Check your inbox.';
+    msgEl.style.color = '#6ee7b7'; msgEl.style.background = 'rgba(16,185,129,0.1)';
+  }
+}
+
+async function handleSignOut() {
+  await _supa.auth.signOut();
+}
+
+// ============================================================
+// REAL-TIME SYNC — keep all coaches in sync
+// ============================================================
+let _realtimeChannel = null;
+
+function subscribeToSharedData() {
+  if (_realtimeChannel) return; // already subscribed
+  _realtimeChannel = _supa
+    .channel('shared-app-data')
+    .on(
+      'postgres_changes',
+      { event: 'UPDATE', schema: 'public', table: 'app_data', filter: `id=eq.${SHARED_ID}` },
+      payload => {
+        // Another coach saved — reload state and re-render (but only if we're not
+        // the one who just saved, identified by a flag set in persist())
+        if (_persistingNow) return;
+        const d = payload.new;
+        if (!d) return;
+        state.squads      = d.squads       || [];
+        state.nextSquadId = d.next_squad_id || 1;
+        state.nextId      = d.next_id       || 1;
+        state.matches     = d.matches       || [];
+        state.nextMatchId = d.next_match_id || 1;
+        // Preserve active selections so the UI doesn't jump
+        if (!state.activeSquadId && state.squads.length) state.activeSquadId = state.squads[0].id;
+        if (state.activeMatchId && !state.matches.find(m => m.id === state.activeMatchId)) state.activeMatchId = null;
+        renderSquadSelectorBar();
+        renderSquad();
+        renderMatchTab();
+        renderPlanMatchBanner();
+        showSyncBanner();
+      }
+    )
+    .subscribe();
+}
+
+function unsubscribeFromSharedData() {
+  if (_realtimeChannel) {
+    _supa.removeChannel(_realtimeChannel);
+    _realtimeChannel = null;
+  }
+}
+
+let _persistingNow = false;
+// Wrap persist to set the flag so we ignore our own real-time echo
+const _persistOrig = persist;
+persist = async function() {
+  _persistingNow = true;
+  await _persistOrig();
+  setTimeout(() => { _persistingNow = false; }, 2000);
+};
+
+function showSyncBanner() {
+  let banner = document.getElementById('sync-banner');
+  if (!banner) {
+    banner = document.createElement('div');
+    banner.id = 'sync-banner';
+    banner.style.cssText = 'position:fixed;bottom:1rem;right:1rem;background:#10b981;color:#fff;padding:0.5rem 1rem;border-radius:0.5rem;font-size:0.85rem;z-index:500;transition:opacity 0.5s';
+    document.body.appendChild(banner);
+  }
+  banner.textContent = '🔄 Another coach made changes — data updated';
+  banner.style.opacity = '1';
+  clearTimeout(banner._timer);
+  banner._timer = setTimeout(() => { banner.style.opacity = '0'; }, 3500);
+}
+
+// ============================================================
+// INIT — driven by Supabase auth state
+// ============================================================
+_supa.auth.onAuthStateChange(async (event, session) => {
+  _currentUser = session ? session.user : null;
+
+  // PASSWORD_RECOVERY: coach clicked the reset link — show set-new-password UI
+  if (event === 'PASSWORD_RECOVERY') {
+    showSetPasswordOverlay();
+    return;
+  }
+
+  if (_currentUser) {
+    // Reset state before loading fresh shared data
+    Object.assign(state, { squads: [], matches: [], activeSquadId: null, currentPlan: null, currentPlans: [] });
+    await initState();
+    // Update header
+    const emailEl = document.getElementById('user-email');
+    if (emailEl) emailEl.textContent = _currentUser.email;
+    // Hide auth overlay
+    document.getElementById('auth-overlay').style.display = 'none';
+    // Subscribe to real-time changes from other coaches
+    subscribeToSharedData();
+    // Render app
+    renderSquadSelectorBar();
+    renderSquad();
+    renderSeasonStats();
+    renderPlanMatchBanner();
+  } else {
+    unsubscribeFromSharedData();
+    // Show sign-in panel (not forgot panel) and clear header
+    showSignInPanel();
+    document.getElementById('auth-overlay').style.display = 'flex';
+    const emailEl = document.getElementById('user-email');
+    if (emailEl) emailEl.textContent = '';
+  }
+});
+
+// ============================================================
+// SET NEW PASSWORD (after clicking reset link in email)
+// ============================================================
+function showSetPasswordOverlay() {
+  // Reuse the auth overlay — swap in a set-password panel
+  let panel = document.getElementById('auth-panel-setpw');
+  if (!panel) {
+    panel = document.createElement('div');
+    panel.id = 'auth-panel-setpw';
+    panel.innerHTML = `
+      <div style="text-align:center;margin-bottom:1.5rem">
+        <div style="font-size:2rem;margin-bottom:0.5rem">🔐</div>
+        <h2 style="font-size:1.2rem;font-weight:700">Set New Password</h2>
+        <p style="color:var(--muted);font-size:0.85rem;margin-top:0.25rem">Choose a new password for your account</p>
+      </div>
+      <div class="form-group" style="margin-bottom:0.75rem">
+        <label>New Password</label>
+        <input class="form-input" type="password" id="auth-newpw" placeholder="At least 6 characters" autocomplete="new-password">
+      </div>
+      <div class="form-group" style="margin-bottom:1rem">
+        <label>Confirm Password</label>
+        <input class="form-input" type="password" id="auth-newpw-confirm" placeholder="••••••••" autocomplete="new-password" onkeydown="if(event.key==='Enter')handleSetPassword()">
+      </div>
+      <button id="auth-setpw-btn" class="btn btn-primary" style="width:100%;justify-content:center" onclick="handleSetPassword()">Save New Password</button>
+      <div id="auth-setpw-msg" style="display:none;margin-top:0.75rem;padding:0.5rem 0.75rem;border-radius:0.4rem;font-size:0.85rem"></div>`;
+    // Insert into the overlay card (first child div)
+    document.querySelector('#auth-overlay > div').appendChild(panel);
+  }
+  document.getElementById('auth-panel-signin').style.display = 'none';
+  document.getElementById('auth-panel-forgot').style.display = 'none';
+  panel.style.display = '';
+  document.getElementById('auth-overlay').style.display = 'flex';
+}
+
+async function handleSetPassword() {
+  const pw      = document.getElementById('auth-newpw').value;
+  const confirm = document.getElementById('auth-newpw-confirm').value;
+  const btn     = document.getElementById('auth-setpw-btn');
+  const msgEl   = document.getElementById('auth-setpw-msg');
+  if (pw.length < 6) {
+    msgEl.textContent = 'Password must be at least 6 characters.';
+    msgEl.style.display = ''; msgEl.style.color = '#fca5a5'; msgEl.style.background = 'rgba(239,68,68,0.1)';
+    return;
+  }
+  if (pw !== confirm) {
+    msgEl.textContent = 'Passwords do not match.';
+    msgEl.style.display = ''; msgEl.style.color = '#fca5a5'; msgEl.style.background = 'rgba(239,68,68,0.1)';
+    return;
+  }
+  btn.disabled = true; btn.textContent = 'Saving…';
+  const { error } = await _supa.auth.updateUser({ password: pw });
+  btn.disabled = false; btn.textContent = 'Save New Password';
+  if (error) {
+    msgEl.textContent = error.message;
+    msgEl.style.display = ''; msgEl.style.color = '#fca5a5'; msgEl.style.background = 'rgba(239,68,68,0.1)';
+  } else {
+    // Password updated — Supabase will fire a SIGNED_IN event which hides the overlay
+    msgEl.textContent = 'Password updated! Signing you in…';
+    msgEl.style.display = ''; msgEl.style.color = '#6ee7b7'; msgEl.style.background = 'rgba(16,185,129,0.1)';
+  }
+}
 </script>
 
 <!-- SUB EDIT MODAL -->
