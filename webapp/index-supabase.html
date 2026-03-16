@@ -722,10 +722,11 @@
 //   NOTE: The first coach to sign in will populate the shared row with
 //   example data if it is empty. All subsequent coaches see the same data.
 //
-const SUPABASE_URL      = 'https://pjtjgusqvvpdyaqvwgvw.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_zgb9E9mrwlaXfx9JxxcLhA_MqM0QNmB';
+const SUPABASE_URL      = 'https://YOUR_PROJECT_ID.supabase.co';
+const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
 const _supa = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 let _currentUser = null;
+let _awaitingPasswordReset = false;
 
 // ============================================================
 // STATE
@@ -2736,7 +2737,14 @@ _supa.auth.onAuthStateChange(async (event, session) => {
 
   // PASSWORD_RECOVERY: coach clicked the reset link — show set-new-password UI
   if (event === 'PASSWORD_RECOVERY') {
+    _awaitingPasswordReset = true;
     showSetPasswordOverlay();
+    return;
+  }
+
+  // Supabase fires SIGNED_IN immediately after PASSWORD_RECOVERY (same session).
+  // Ignore it until the user has actually saved their new password.
+  if (_awaitingPasswordReset && event === 'SIGNED_IN') {
     return;
   }
 
@@ -2822,7 +2830,8 @@ async function handleSetPassword() {
     msgEl.textContent = error.message;
     msgEl.style.display = ''; msgEl.style.color = '#fca5a5'; msgEl.style.background = 'rgba(239,68,68,0.1)';
   } else {
-    // Password updated — Supabase will fire a SIGNED_IN event which hides the overlay
+    // Password updated — clear flag so the next SIGNED_IN event loads the app normally
+    _awaitingPasswordReset = false;
     msgEl.textContent = 'Password updated! Signing you in…';
     msgEl.style.display = ''; msgEl.style.color = '#6ee7b7'; msgEl.style.background = 'rgba(16,185,129,0.1)';
   }
