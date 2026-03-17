@@ -726,12 +726,15 @@ const SUPABASE_URL      = 'https://pjtjgusqvvpdyaqvwgvw.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_zgb9E9mrwlaXfx9JxxcLhA_MqM0QNmB';
 const _supa = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 let _currentUser = null;
-// Pre-detect password recovery before onAuthStateChange fires — Supabase v2 emits
-// SIGNED_IN *before* PASSWORD_RECOVERY, so we check the URL hash up-front.
-let _awaitingPasswordReset = (
-  window.location.hash.includes('type=recovery') ||
-  new URLSearchParams(window.location.search).get('type') === 'recovery'
-);
+// Pre-detect password recovery OR invite before onAuthStateChange fires — Supabase v2
+// may emit SIGNED_IN / INITIAL_SESSION *before* PASSWORD_RECOVERY, so check the URL up-front.
+// Invite links use type=signup (Supabase v2) or type=invite.
+const _hashParams = new URLSearchParams(window.location.hash.replace('#', '?'));
+const _qsType     = new URLSearchParams(window.location.search).get('type');
+const _hashType   = _hashParams.get('type');
+let _awaitingPasswordReset = ['recovery'].includes(_hashType) || ['recovery'].includes(_qsType);
+let _awaitingInviteSetup   = ['invite', 'signup'].includes(_hashType) || ['invite', 'signup'].includes(_qsType);
+let _awaitingPasswordSetup = _awaitingPasswordReset || _awaitingInviteSetup;
 
 // ============================================================
 // STATE
@@ -2743,13 +2746,20 @@ _supa.auth.onAuthStateChange(async (event, session) => {
   // PASSWORD_RECOVERY: coach clicked the reset link — show set-new-password UI
   if (event === 'PASSWORD_RECOVERY') {
     _awaitingPasswordReset = true;
+    _awaitingPasswordSetup = true;
     showSetPasswordOverlay();
     return;
   }
 
+  // Invite links: Supabase signs the user in immediately — intercept and force password setup
+  if (_awaitingInviteSetup && _currentUser) {
+    showSetPasswordOverlay(true);
+    return;
+  }
+
   // Supabase v2 fires INITIAL_SESSION and/or SIGNED_IN before PASSWORD_RECOVERY.
-  // Block ALL events while awaiting password reset so the user isn't logged in.
-  if (_awaitingPasswordReset && event !== 'PASSWORD_RECOVERY') {
+  // Block ALL events while awaiting password setup so the user isn't logged in.
+  if (_awaitingPasswordSetup && event !== 'PASSWORD_RECOVERY') {
     showSetPasswordOverlay();
     return;
   }
@@ -2783,7 +2793,7 @@ _supa.auth.onAuthStateChange(async (event, session) => {
 // ============================================================
 // SET NEW PASSWORD (after clicking reset link in email)
 // ============================================================
-function showSetPasswordOverlay() {
+function showSetPasswordOverlay(isInvite) {
   // Reuse the auth overlay — swap in a set-password panel
   let panel = document.getElementById('auth-panel-setpw');
   if (!panel) {
@@ -2791,9 +2801,9 @@ function showSetPasswordOverlay() {
     panel.id = 'auth-panel-setpw';
     panel.innerHTML = `
       <div style="text-align:center;margin-bottom:1.5rem">
-        <div style="font-size:2rem;margin-bottom:0.5rem">🔐</div>
-        <h2 style="font-size:1.2rem;font-weight:700">Set New Password</h2>
-        <p style="color:var(--muted);font-size:0.85rem;margin-top:0.25rem">Choose a new password for your account</p>
+        <div style="font-size:2rem;margin-bottom:0.5rem" id="setpw-icon">🔐</div>
+        <h2 style="font-size:1.2rem;font-weight:700" id="setpw-title">Set New Password</h2>
+        <p style="color:var(--muted);font-size:0.85rem;margin-top:0.25rem" id="setpw-subtitle">Choose a new password for your account</p>
       </div>
       <div class="form-group" style="margin-bottom:0.75rem">
         <label>New Password</label>
@@ -2812,6 +2822,12 @@ function showSetPasswordOverlay() {
   document.getElementById('auth-panel-forgot').style.display = 'none';
   panel.style.display = '';
   document.getElementById('auth-overlay').style.display = 'flex';
+  // Update heading for invite vs reset context
+  if (isInvite) {
+    document.getElementById('setpw-icon').textContent = '👋';
+    document.getElementById('setpw-title').textContent = 'Welcome! Create Your Password';
+    document.getElementById('setpw-subtitle').textContent = 'Set a password to complete your account setup';
+  }
 }
 
 async function handleSetPassword() {
@@ -2836,10 +2852,18 @@ async function handleSetPassword() {
     msgEl.textContent = error.message;
     msgEl.style.display = ''; msgEl.style.color = '#fca5a5'; msgEl.style.background = 'rgba(239,68,68,0.1)';
   } else {
-    // Password updated — clear flag so the next SIGNED_IN event loads the app normally
+    // Password updated — sign out and send the user back to the login screen
     _awaitingPasswordReset = false;
-    msgEl.textContent = 'Password updated! Signing you in…';
+    _awaitingInviteSetup = false;
+    _awaitingPasswordSetup = false;
+    msgEl.textContent = 'Password saved! Redirecting to sign in…';
     msgEl.style.display = ''; msgEl.style.color = '#6ee7b7'; msgEl.style.background = 'rgba(16,185,129,0.1)';
+    await _supa.auth.signOut();
+    setTimeout(() => {
+      // Hide the set-password panel and show the sign-in panel
+      document.getElementById('auth-panel-setpw').style.display = 'none';
+      showSignInPanel();
+    }, 1500);
   }
 }
 </script>
