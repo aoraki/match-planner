@@ -2747,9 +2747,10 @@ _supa.auth.onAuthStateChange(async (event, session) => {
     return;
   }
 
-  // Supabase fires SIGNED_IN immediately after PASSWORD_RECOVERY (same session).
-  // Ignore it until the user has actually saved their new password.
-  if (_awaitingPasswordReset && event === 'SIGNED_IN') {
+  // Supabase v2 fires INITIAL_SESSION and/or SIGNED_IN before PASSWORD_RECOVERY.
+  // Block ALL events while awaiting password reset so the user isn't logged in.
+  if (_awaitingPasswordReset && event !== 'PASSWORD_RECOVERY') {
+    showSetPasswordOverlay();
     return;
   }
 
