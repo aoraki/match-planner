@@ -726,7 +726,12 @@ const SUPABASE_URL      = 'https://pjtjgusqvvpdyaqvwgvw.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_zgb9E9mrwlaXfx9JxxcLhA_MqM0QNmB';
 const _supa = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 let _currentUser = null;
-let _awaitingPasswordReset = false;
+// Pre-detect password recovery before onAuthStateChange fires — Supabase v2 emits
+// SIGNED_IN *before* PASSWORD_RECOVERY, so we check the URL hash up-front.
+let _awaitingPasswordReset = (
+  window.location.hash.includes('type=recovery') ||
+  new URLSearchParams(window.location.search).get('type') === 'recovery'
+);
 
 // ============================================================
 // STATE
