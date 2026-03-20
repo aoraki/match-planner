@@ -2740,6 +2740,8 @@ function showSyncBanner() {
 // ============================================================
 // INIT — driven by Supabase auth state
 // ============================================================
+let _authInitRunning = false;
+
 _supa.auth.onAuthStateChange(async (event, session) => {
   _currentUser = session ? session.user : null;
 
@@ -2764,22 +2766,35 @@ _supa.auth.onAuthStateChange(async (event, session) => {
     return;
   }
 
+  // TOKEN_REFRESHED only updates credentials — no need to reset/reload app state.
+  // Resetting here would wipe in-memory data while the async reload runs,
+  // causing visible data (e.g. matches) to disappear.
+  if (event === 'TOKEN_REFRESHED') return;
+
   if (_currentUser) {
-    // Reset state before loading fresh shared data
-    Object.assign(state, { squads: [], matches: [], activeSquadId: null, currentPlan: null, currentPlans: [] });
-    await initState();
-    // Update header
-    const emailEl = document.getElementById('user-email');
-    if (emailEl) emailEl.textContent = _currentUser.email;
-    // Hide auth overlay
-    document.getElementById('auth-overlay').style.display = 'none';
-    // Subscribe to real-time changes from other coaches
-    subscribeToSharedData();
-    // Render app
-    renderSquadSelectorBar();
-    renderSquad();
-    renderSeasonStats();
-    renderPlanMatchBanner();
+    // Guard against overlapping runs (INITIAL_SESSION + SIGNED_IN can fire back-to-back)
+    if (_authInitRunning) return;
+    _authInitRunning = true;
+    try {
+      // Reset state before loading fresh shared data
+      Object.assign(state, { squads: [], matches: [], activeSquadId: null, currentPlan: null, currentPlans: [] });
+      await initState();
+      // Update header
+      const emailEl = document.getElementById('user-email');
+      if (emailEl) emailEl.textContent = _currentUser.email;
+      // Hide auth overlay
+      document.getElementById('auth-overlay').style.display = 'none';
+      // Subscribe to real-time changes from other coaches
+      subscribeToSharedData();
+      // Render app
+      renderSquadSelectorBar();
+      renderSquad();
+      renderMatchTab();
+      renderSeasonStats();
+      renderPlanMatchBanner();
+    } finally {
+      _authInitRunning = false;
+    }
   } else {
     unsubscribeFromSharedData();
     // Show sign-in panel (not forgot panel) and clear header
