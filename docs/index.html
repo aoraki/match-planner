@@ -2766,15 +2766,28 @@ _supa.auth.onAuthStateChange(async (event, session) => {
     return;
   }
 
-  // TOKEN_REFRESHED only updates credentials — no need to reset/reload app state.
-  // Resetting here would wipe in-memory data while the async reload runs,
-  // causing visible data (e.g. matches) to disappear.
-  if (event === 'TOKEN_REFRESHED') return;
+  // TOKEN_REFRESHED only updates credentials — no need to reset/reload app state
+  // if the app is already visible. But if the overlay is still showing (e.g. the
+  // access token was expired when INITIAL_SESSION fired and the refresh just
+  // completed), fall through so the app initializes normally.
+  if (event === 'TOKEN_REFRESHED') {
+    const overlay = document.getElementById('auth-overlay');
+    if (overlay && overlay.style.display === 'none') return;
+    // App not yet visible — fall through to full init below
+  }
 
   if (_currentUser) {
-    // Guard against overlapping runs (INITIAL_SESSION + SIGNED_IN can fire back-to-back)
-    if (_authInitRunning) return;
+    // Guard against overlapping runs (INITIAL_SESSION + SIGNED_IN can fire back-to-back).
+    // Hide the overlay immediately so the user isn't stuck on the sign-in screen
+    // while the already-running init completes.
+    if (_authInitRunning) {
+      document.getElementById('auth-overlay').style.display = 'none';
+      return;
+    }
     _authInitRunning = true;
+    // Hide the overlay immediately once auth is confirmed — don't make the user
+    // wait for the async data load before the sign-in screen disappears.
+    document.getElementById('auth-overlay').style.display = 'none';
     try {
       // Reset state before loading fresh shared data
       Object.assign(state, { squads: [], matches: [], activeSquadId: null, currentPlan: null, currentPlans: [] });
@@ -2782,8 +2795,6 @@ _supa.auth.onAuthStateChange(async (event, session) => {
       // Update header
       const emailEl = document.getElementById('user-email');
       if (emailEl) emailEl.textContent = _currentUser.email;
-      // Hide auth overlay
-      document.getElementById('auth-overlay').style.display = 'none';
       // Subscribe to real-time changes from other coaches
       subscribeToSharedData();
       // Render app
