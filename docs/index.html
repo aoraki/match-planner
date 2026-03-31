@@ -875,34 +875,56 @@ const SHARED_ID = 'shared';
 
 async function initState() {
   console.log('[initState] fetching shared data from Supabase...');
-  try {
-    const { data } = await _supa
-      .from('app_data')
-      .select('*')
-      .eq('id', SHARED_ID)
-      .maybeSingle();
-    console.log('[initState] raw response:', data ? `id=${data.id}, squads=${data.squads?.length ?? 0}, matches=${data.matches?.length ?? 0}` : 'null (no row returned)');
-    if (data && (data.squads?.length || data.matches?.length)) {
-      state.squads      = data.squads       || [];
-      state.nextSquadId = data.next_squad_id || (state.squads.length ? Math.max(...state.squads.map(s=>s.id)) + 1 : 1);
-      state.nextId      = data.next_id       || 1;
-      state.matches     = data.matches       || [];
-      state.nextMatchId = data.next_match_id || (state.matches.length ? Math.max(...state.matches.map(m=>m.id)) + 1 : 1);
-      state.activeSquadId = state.squads.length ? state.squads[0].id : null;
-      // Ensure all matches have a squad assigned
-      state.matches.forEach(m => {
-        if (!m.squadId && state.squads.length) m.squadId = state.squads[0].id;
-      });
-    } else {
-      // Shared row is empty — first coach in seeds the example data
-      state.squads        = [{ id: 1, name: 'Main Squad', players: DEFAULT_SQUAD.map(p => ({...p})) }];
-      state.nextSquadId   = 2;
-      state.nextId        = 12;
-      state.activeSquadId = 1;
-      await persist();
+  let data = null;
+
+  // Retry up to 3× with increasing delays.
+  // A new tab sharing an incognito (or regular) session can lose the Supabase
+  // auth lock on startup, causing the query to run without auth headers and
+  // RLS to silently return null — even though real data exists.
+  // Retrying gives the lock time to settle before we fall back to seeding defaults.
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const { data: row, error } = await _supa
+        .from('app_data')
+        .select('*')
+        .eq('id', SHARED_ID)
+        .maybeSingle();
+      if (error) throw error;   // surface RLS / auth errors so we retry rather than fall-through
+      data = row;
+      console.log(`[initState] attempt ${attempt}:`, data
+        ? `id=${data.id}, squads=${data.squads?.length ?? 0}, matches=${data.matches?.length ?? 0}`
+        : 'null (no row returned)');
+      if (data !== null) break; // got a real row — stop retrying
+    } catch (e) {
+      console.warn(`[initState] attempt ${attempt} error:`, e.message || e);
     }
-  } catch(e) {
-    console.error('[initState] Failed to load data from Supabase:', e);
+    if (attempt < 3) {
+      const ms = attempt * 750; // 750 ms then 1500 ms
+      console.log(`[initState] waiting ${ms}ms before retry ${attempt + 1}/3…`);
+      await new Promise(r => setTimeout(r, ms));
+    }
+  }
+
+  if (data && (data.squads?.length || data.matches?.length)) {
+    state.squads      = data.squads       || [];
+    state.nextSquadId = data.next_squad_id || (state.squads.length ? Math.max(...state.squads.map(s=>s.id)) + 1 : 1);
+    state.nextId      = data.next_id       || 1;
+    state.matches     = data.matches       || [];
+    state.nextMatchId = data.next_match_id || (state.matches.length ? Math.max(...state.matches.map(m=>m.id)) + 1 : 1);
+    state.activeSquadId = state.squads.length ? state.squads[0].id : null;
+    // Ensure all matches have a squad assigned
+    state.matches.forEach(m => {
+      if (!m.squadId && state.squads.length) m.squadId = state.squads[0].id;
+    });
+  } else {
+    // Shared row is genuinely empty — first coach in seeds the example data.
+    // persist() has its own _currentUser guard so it won't write if auth is
+    // still unsettled (another safety net against overwriting real data).
+    state.squads        = [{ id: 1, name: 'Main Squad', players: DEFAULT_SQUAD.map(p => ({...p})) }];
+    state.nextSquadId   = 2;
+    state.nextId        = 12;
+    state.activeSquadId = 1;
+    await persist();
   }
 }
 
