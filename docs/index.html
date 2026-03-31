@@ -156,9 +156,99 @@
       .container { padding: 1rem; }
     }
     @media print {
-      header, .tabs, .btn, .form-group, .card:has(button), .alert-info { display: none !important; }
-      .card { background: white; color: black; border: 1px solid #ccc; }
-      body { background: white; color: black; }
+      @page { margin: 1.5cm; }
+
+      /* ── Force background colours to print ── */
+      *, *::before, *::after { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+      /* ── Override dark-theme CSS variables ── */
+      :root {
+        --bg:     #fff;
+        --card:   #fff;
+        --card2:  #f5f5f5;
+        --border: #999;
+        --text:   #000;
+        --muted:  #444;
+        --accent: #000;
+        --gk:     #fff;
+        --def:    #ddd;
+        --mid:    #888;
+        --att:    #333;
+      }
+
+      /* ── Hide interactive UI chrome ── */
+      header, .tabs, .btn, .form-group, .modal-overlay,
+      #auth-overlay, .sub-edit-overlay, .plan-tabs,
+      .match-detail-back, .squad-filter-btn,
+      .no-print, #xi-builder-card { display: none !important; }
+
+      /* ── Body & layout ── */
+      body   { background: #fff !important; color: #000 !important; }
+      .panel { display: none !important; }
+      .panel.active { display: block !important; }
+
+      /* ── Cards ── */
+      .card {
+        background: #fff !important;
+        color: #000 !important;
+        border: 1px solid #888 !important;
+        break-inside: avoid;
+        page-break-inside: avoid;
+      }
+      .card-title { color: #000 !important; }
+      .text-muted  { color: #444 !important; }
+
+      /* ── Position badges – 4 distinct monochrome shades ── */
+      .badge { border: 1.5px solid #000 !important; }
+      .badge-GK  { background: #fff !important; color: #000 !important; }
+      .badge-DEF { background: #ddd !important; color: #000 !important; }
+      .badge-MID { background: #666 !important; color: #fff !important; }
+      .badge-ATT { background: #333 !important; color: #fff !important; }
+
+      /* ── Pitch visualisation ── */
+      .pitch-field { background: #e0e0e0 !important; }
+      .pitch-field svg rect,
+      .pitch-field svg line,
+      .pitch-field svg circle { stroke: #555 !important; fill: none !important; }
+      .pitch-field svg circle[r="2.5"] { fill: #555 !important; }
+      .pit-dot { border: 2px solid #000 !important; }
+      .pit-dot-GK  { background: #fff !important; color: #000 !important; }
+      .pit-dot-DEF { background: #bbb !important; color: #000 !important; }
+      .pit-dot-MID { background: #666 !important; color: #fff !important; }
+      .pit-dot-ATT { background: #333 !important; color: #fff !important; }
+      .pit-name { color: #000 !important; text-shadow: none !important; }
+      .pit-mins { color: #444 !important; }
+
+      /* ── Substitution events ── */
+      .sub-event { background: #fff !important; border-color: #aaa !important; }
+      .sub-time-pill { background: #000 !important; color: #fff !important; }
+      .sub-time-pill.halftime { background: #555 !important; color: #fff !important; }
+      .sub-off { color: #000 !important; }
+      .sub-on  { color: #000 !important; }
+
+      /* ── Playing time bars ── */
+      .time-bar-track { background: #e0e0e0 !important; }
+      .time-bar-fill  { background: #333 !important; }
+      .time-bar-target-line { background: rgba(0,0,0,0.45) !important; }
+      .time-bar-label { color: #000 !important; }
+      .time-bar-label span { color: #000 !important; }
+      .time-bar-tag   { color: #444 !important; }
+
+      /* ── Alerts ── */
+      .alert { background: #f5f5f5 !important; border-color: #888 !important; color: #000 !important; }
+      .alert-info, .alert-warning, .alert-error, .alert-success { background: #f5f5f5 !important; color: #000 !important; }
+
+      /* ── Tables ── */
+      .data-table th { color: #444 !important; border-color: #888 !important; }
+      .data-table td { border-color: #ddd !important; }
+      .data-table tbody tr:hover td { background: transparent !important; }
+
+      /* ── Playing-time / plan description text ── */
+      .plan-tab-desc { background: #f5f5f5 !important; color: #444 !important; border-color: #888 !important; }
+
+      /* ── Timeline SVG – invert the dark background to white ── */
+      #timeline-svg-container { background: #fff !important; }
+      #timeline-svg-container svg { filter: grayscale(1) invert(1) contrast(1.1); }
     }
 
     /* Timeline SVG container */
@@ -394,7 +484,7 @@
         <button class="btn btn-danger btn-sm" onclick="deleteActiveMatch()">🗑 Delete Match</button>
       </div>
 
-      <div class="card">
+      <div class="card no-print">
         <h2 class="card-title">📅 Match Details</h2>
         <div class="settings-grid" style="grid-template-columns:repeat(auto-fill,minmax(200px,1fr))">
           <div class="form-group">
@@ -427,7 +517,7 @@
         </div>
       </div>
 
-      <div class="card">
+      <div class="card no-print">
         <div class="flex justify-between items-center" style="margin-bottom:0.75rem">
           <div>
             <h2 class="card-title" style="margin:0">Matchday Squad</h2>
@@ -509,7 +599,7 @@
   <!-- ========== PLAN TAB ========== -->
   <div class="panel" id="tab-plan">
     <div id="plan-match-banner" style="display:none" class="match-banner"></div>
-    <div class="card">
+    <div class="card no-print">
       <h2 class="card-title">⚙️ Game Settings</h2>
       <div class="settings-grid">
         <div class="form-group">
@@ -784,12 +874,14 @@ function blankSquad(id, name) {
 const SHARED_ID = 'shared';
 
 async function initState() {
+  console.log('[initState] fetching shared data from Supabase...');
   try {
     const { data } = await _supa
       .from('app_data')
       .select('*')
       .eq('id', SHARED_ID)
       .maybeSingle();
+    console.log('[initState] raw response:', data ? `id=${data.id}, squads=${data.squads?.length ?? 0}, matches=${data.matches?.length ?? 0}` : 'null (no row returned)');
     if (data && (data.squads?.length || data.matches?.length)) {
       state.squads      = data.squads       || [];
       state.nextSquadId = data.next_squad_id || (state.squads.length ? Math.max(...state.squads.map(s=>s.id)) + 1 : 1);
@@ -810,7 +902,7 @@ async function initState() {
       await persist();
     }
   } catch(e) {
-    console.error('Failed to load data from Supabase:', e);
+    console.error('[initState] Failed to load data from Supabase:', e);
   }
 }
 
@@ -2637,8 +2729,10 @@ async function handleSignIn() {
   const password = document.getElementById('auth-password').value;
   const btn      = document.getElementById('auth-signin-btn');
   if (!email || !password) { showAuthError('Please enter your email and password.'); return; }
+  console.log(`[handleSignIn] attempting sign-in for ${email}`);
   btn.disabled = true; btn.textContent = 'Signing in…';
-  const { error } = await _supa.auth.signInWithPassword({ email, password });
+  const { data: signInData, error } = await _supa.auth.signInWithPassword({ email, password });
+  console.log(`[handleSignIn] result: error=${error?.message ?? 'none'} user=${signInData?.user?.email ?? 'none'}`);
   btn.disabled = false; btn.textContent = 'Sign In';
   if (error) showAuthError(error.message);
 }
@@ -2744,6 +2838,7 @@ let _authInitRunning = false;
 
 _supa.auth.onAuthStateChange(async (event, session) => {
   _currentUser = session ? session.user : null;
+  console.log(`[Auth] event=${event} user=${_currentUser?.email ?? 'none'} _authInitRunning=${_authInitRunning} _awaitingPasswordSetup=${_awaitingPasswordSetup} overlayVisible=${document.getElementById('auth-overlay')?.style.display !== 'none'}`);
 
   // PASSWORD_RECOVERY: coach clicked the reset link — show set-new-password UI
   if (event === 'PASSWORD_RECOVERY') {
@@ -2755,6 +2850,7 @@ _supa.auth.onAuthStateChange(async (event, session) => {
 
   // Invite links: Supabase signs the user in immediately — intercept and force password setup
   if (_awaitingInviteSetup && _currentUser) {
+    console.log('[Auth] → invite setup flow, showing set-password overlay');
     showSetPasswordOverlay(true);
     return;
   }
@@ -2762,6 +2858,7 @@ _supa.auth.onAuthStateChange(async (event, session) => {
   // Supabase v2 fires INITIAL_SESSION and/or SIGNED_IN before PASSWORD_RECOVERY.
   // Block ALL events while awaiting password setup so the user isn't logged in.
   if (_awaitingPasswordSetup && event !== 'PASSWORD_RECOVERY') {
+    console.log('[Auth] → _awaitingPasswordSetup is true, blocking event and showing set-password overlay');
     showSetPasswordOverlay();
     return;
   }
@@ -2772,8 +2869,11 @@ _supa.auth.onAuthStateChange(async (event, session) => {
   // completed), fall through so the app initializes normally.
   if (event === 'TOKEN_REFRESHED') {
     const overlay = document.getElementById('auth-overlay');
-    if (overlay && overlay.style.display === 'none') return;
-    // App not yet visible — fall through to full init below
+    if (overlay && overlay.style.display === 'none') {
+      console.log('[Auth] → TOKEN_REFRESHED, app already visible — skipping re-init');
+      return;
+    }
+    console.log('[Auth] → TOKEN_REFRESHED but overlay still visible — falling through to init');
   }
 
   if (_currentUser) {
@@ -2781,17 +2881,20 @@ _supa.auth.onAuthStateChange(async (event, session) => {
     // Hide the overlay immediately so the user isn't stuck on the sign-in screen
     // while the already-running init completes.
     if (_authInitRunning) {
+      console.log('[Auth] → _authInitRunning already true — hiding overlay and returning early');
       document.getElementById('auth-overlay').style.display = 'none';
       return;
     }
     _authInitRunning = true;
     // Hide the overlay immediately once auth is confirmed — don't make the user
     // wait for the async data load before the sign-in screen disappears.
+    console.log('[Auth] → user confirmed, hiding overlay and starting initState()');
     document.getElementById('auth-overlay').style.display = 'none';
     try {
       // Reset state before loading fresh shared data
       Object.assign(state, { squads: [], matches: [], activeSquadId: null, currentPlan: null, currentPlans: [] });
       await initState();
+      console.log(`[Auth] → initState() complete: ${state.squads.length} squad(s), ${state.matches.length} match(es)`);
       // Update header
       const emailEl = document.getElementById('user-email');
       if (emailEl) emailEl.textContent = _currentUser.email;
@@ -2803,10 +2906,14 @@ _supa.auth.onAuthStateChange(async (event, session) => {
       renderMatchTab();
       renderSeasonStats();
       renderPlanMatchBanner();
+      console.log('[Auth] → app render complete');
+    } catch(e) {
+      console.error('[Auth] → error during initState() or render:', e);
     } finally {
       _authInitRunning = false;
     }
   } else {
+    console.log('[Auth] → no user — showing sign-in overlay');
     unsubscribeFromSharedData();
     // Show sign-in panel (not forgot panel) and clear header
     showSignInPanel();
